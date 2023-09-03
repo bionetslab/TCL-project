@@ -114,6 +114,7 @@ def calculate_average_expressions_per_protein2(adata_X, cells_in_cluster, protei
     return actual_pvalues_dict, average_simulated_pvalues_dict
             
             
+# def run(adata_pickle_path, user_selected_cluster_level):
 def run(adata_pickle_path):
 
     with open(adata_pickle_path, 'rb') as f:
@@ -121,52 +122,24 @@ def run(adata_pickle_path):
     res = list(pickle_.keys())[0]
     all_columns=pickle_[res].to_df().columns
 
-    recurrence_labels=[]
-    survival_days_counts=[]
-    survival_days_binary=[]
-
-    nhood_enrichment_zscores_recurrence_1=[]
-    nhood_enrichment_zscores_recurrence_0=[]
-
-    nhood_enrichment_zscores_survival_1=[]
-    nhood_enrichment_zscores_survival_0=[]
-
     cnt=-1
-
-
-    for i in pickle_:
-        recurrence_labels.append(np.unique(pickle_[i].obsm['recurrence'])[0])
-        survival_days_counts.append(np.unique(pickle_[i].obsm['survival_days_capped'])[0])
-
-    survival_days_mean=np.mean(survival_days_counts)
-    for i in survival_days_counts:
-        if i>survival_days_mean:
-            survival_days_binary.append(1)
-        else:
-            survival_days_binary.append(0)
-
-
-    # protein_channels=list(pickle_[list(pickle_.keys())[0]].to_df())
-
+    
     # ------
     pickle_items=list(pickle_.items())
     first_three_items = pickle_items[0:1]
     pickle_new=dict(first_three_items)
     pickle_=pickle_new
     # ------
-    
-    no_of_patients=np.shape(pickle_)
-    error_samples=[]
-
     essential_proteins_allPatients={}
-    X_allPatients={}
-    y_allPatients={}
+    essentialProteinsPerCluster_acrossClusterLevels_forAllPatients={}
+    allEssentialProteins_acrossClusterLevels_forAllPatients={}
+    # -------
 
     for i in pickle_:
         
+        cnt+=1
         print('Patient serial number' + str(cnt) + ' (patient id: ' + str(i) + ')')
         print('====================================================================')
-        cnt+=1
         adata=pickle_[i]
         adata_X=adata.to_df()
         adata_raw=adata.copy()
@@ -180,9 +153,13 @@ def run(adata_pickle_path):
         actual_cluster_levels=[format(x, 'd') for x in list(range(1, cluster_level_max_int-1))]
         # ---
         cluster_level_values=[[] for _ in range(len(actual_cluster_levels))]
-        cluster_level_keys=actual_cluster_levels     
+        cluster_level_keys=actual_cluster_levels
         cluster_level_dict=dict(zip(cluster_level_keys, cluster_level_values))
-        # ----------------------------------------------------------------------------------------
+        # ===========================================================================================
+        essentialProteinsPerCluster_acrossClusterLevels={}
+        allEssentialProteins_acrossClusterLevels={}
+    	# ===========================================================================================
+        
         for k in range(1, cluster_level_max_int-1):
             print('Cluster number= '+str(k)+' in '+' in patient serial number '+str(cnt)+' (patient id: ' + str(i) + ')')
             print('-------------               -----------------          ----------------------')
@@ -195,114 +172,185 @@ def run(adata_pickle_path):
             ppbm_no_of_clusters_dict=dict(zip(ppbm_no_of_clusters_dict_keys, ppbm_no_of_clusters_dict_values))
             # ---
             df_clusters=pd.DataFrame(adata_raw.obs[cluster_name])
-            
             for index, row in df_clusters.iterrows():
                 ppbm_no_of_clusters_dict[row[cluster_name]].append(index)
             # ---
             cluster_level_dict[str(k)].append(ppbm_no_of_clusters_dict)
+            _str_='nsbm_level_'+str(k)
+        	# -----
+            gene_ranking_error=1
+            while gene_ranking_error==1:
+                try:
+                    sc.tl.rank_genes_groups(adata_raw, groupby=_str_, pts=True, method='wilcoxon')
+                    gene_ranking_error=0
+                except:
+                    pass
+            # -----
+            DEDF_ppbm=sc.get.rank_genes_groups_df(adata_raw, group=ppbm_clusters_sorted)
+            DEDF_ppbm_AscPVals=categorize(DEDF_ppbm, ppbm_clusters_sorted)
+            adataRaw_rankGenes_names, adataRaw_rankGenes_scores, adataRaw_rankGenes_logfoldchanges, adataRaw_rankGenes_pvals, adataRaw_rankGenes_pvals_adj, adataRaw_rankGenes_pts, adataRaw_rankGenes_pts_rest=pd.DataFrame(adata_raw.uns['rank_genes_groups']['names']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['scores']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['logfoldchanges']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pvals']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pvals_adj']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pts']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pts_rest'])
+            sc.pl.rank_genes_groups(adata_raw, sharey=False, save='sc.pl.rank_genes_groups_PPBMClustering.jpg')
+            # -----
+            DEDF_ppbm_AscPVals_0Point05_cutoff=DEDF_ppbm_AscPVals[DEDF_ppbm_AscPVals.pvals_adj<0.05]
+            DEDF_ppbm_AscPVals_0Point05_cutoff_groups=list(np.unique(DEDF_ppbm_AscPVals_0Point05_cutoff.group))
+            DEDF_ppbm_AscPVals_0Point05_cutoff_groups_sorted=[str(j) for j in sorted([int(i) for i in np.unique(DEDF_ppbm_AscPVals_0Point05_cutoff_groups)])]
+            # -----
+            ppbm_no_of_clusters_dict_values=[[] for _ in range(len(DEDF_ppbm_AscPVals_0Point05_cutoff_groups_sorted))]
+            ppbm_no_of_clusters_dict_keys=DEDF_ppbm_AscPVals_0Point05_cutoff_groups_sorted
+            ppbm_no_of_clusters_dict=dict(zip(ppbm_no_of_clusters_dict_keys, ppbm_no_of_clusters_dict_values))
+            for index, row in DEDF_ppbm_AscPVals_0Point05_cutoff.iterrows():
+                ppbm_no_of_clusters_dict[row['group']].append(row['names'])
+        
+            # -----
+            df=adata_raw.obs[_str_].copy().to_frame()
+            # ppbm_cell_lookup_keys=[str(j) for j in sorted([int(i) for i in np.unique(df.index)])]
+            ppbm_cell_lookup_values=[[] for _ in range(len(ppbm_clusters_sorted))]
+            # ppbm_cell_lookup_keys=[[] for _ in range(len(np.unique(ppbm_cell_lookup_keys)))]
+            ppbm_cell_lookup_keys=ppbm_clusters_sorted
+            ppbm_cell_lookup_dict=dict(zip(ppbm_cell_lookup_keys, ppbm_cell_lookup_values))
+            for index, row in df.iterrows():
+                ppbm_cell_lookup_dict[row[_str_]].append(index)
+            # -----
+            _all_essential_proteins_=[]
+            for key in ppbm_no_of_clusters_dict:
+                print('PPBM cluster ' + str(key) + ' in patient serial number ' + str(cnt) + ' (patient id: ' + str(i) + ')')
+                proteins_in_cluster=ppbm_no_of_clusters_dict[key]
+                cells_in_cluster=ppbm_cell_lookup_dict[key]
+                # ----------------------
+                actual_pvalue_in_cluster, simulated_p_value_dict_in_cluster=calculate_average_expressions_per_protein2(adata_X, cells_in_cluster, proteins_in_cluster)
+                essential_proteins_in_cluster=[]
+                # -----
+                for pv in actual_pvalue_in_cluster:
+                    if (actual_pvalue_in_cluster[pv] < simulated_p_value_dict_in_cluster[pv]):
+                        essential_proteins_in_cluster.append(pv)
+                _all_essential_proteins_.append(list(np.unique(essential_proteins_in_cluster)))
             
+            all_essential_proteins_consolidated=[]
+            for j in _all_essential_proteins_:
+                for p in j:
+                    all_essential_proteins_consolidated.append(p)
+            all_essential_proteins_=list(np.unique(all_essential_proteins_consolidated))
+            _essential_proteins_allPatients_=all_essential_proteins_
+        
+            # ------------------------
+            
+            essentialProteinsPerCluster_acrossClusterLevels[k]=_all_essential_proteins_
+            allEssentialProteins_acrossClusterLevels[k]=_essential_proteins_allPatients_
+        
+            # ------------------------
+        
+            # selected_cluster_level=1
+            selected_cluster_level=cluster_level_max_int-2
+        
+            if k==selected_cluster_level:
+                all_essential_proteins=_all_essential_proteins_.copy()
+                essential_proteins_allPatients[i]=_essential_proteins_allPatients_
+    
+        # ==============================================================================
+    
+        essentialProteinsPerCluster_acrossClusterLevels_forAllPatients[i]=essentialProteinsPerCluster_acrossClusterLevels
+        allEssentialProteins_acrossClusterLevels_forAllPatients[i]=allEssentialProteins_acrossClusterLevels
+    
+        # ==============================================================================
+    	
+    	
+        import math
+    
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------
+        # no_of_cols=3
+        # no_of_rows=int(math.ceil(float((cluster_level_max_int-2)-1)/no_of_cols))
+        # ---
+        # # no_of_cols=1
+        # # no_of_rows=cluster_level_max_int-2
+        # ---
+        # fig, axes = plt.subplots(no_of_rows, no_of_cols, figsize=(50, 50))
+        # fig.suptitle('No. of cluster levels vs. No. of clusters per cluster level')
+        # ----------------------------------------------------------------------------------------------------------------------------------------------------
+
+        _cnt_=-1
+        for k in range(1, cluster_level_max_int-1):
+            print(k)
+            _cnt_+=1
+            print(_cnt_)
+        
+            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # row=int(math.floor(float(_cnt_)/no_of_cols))
+            # col=int(_cnt_%no_of_cols)
+            # print(row, col)
+            # if k==cluster_level_max_int-2:
+            #     if no_of_rows>1:
+            #         _ax_=axes[int(row), int(col)]
+            #         _clust_name_='nsbm_level_'+str(k)
+            #         sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][1], groupby=_clust_name_,ax=_ax_, save="No. of cluster levels vs. No. of clusters per cluster level.jpg");
+            #         _ax_.set_xlabel('No. of clustering levels')
+            #         _ax_.set_ylabel('No. of clusters per level')
+            #         _ax_.set_title(f'No. of clustering levels: {i}')
+            #     elif no_of_rows==1:
+            #         _ax_=axes[int(col)]
+            #         _clust_name_='nsbm_level_'+str(k)
+            #         sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][1], groupby=_clust_name_,ax=_ax_, save="No. of cluster levels vs. No. of clusters per cluster level.jpg");
+            #         _ax_.set_xlabel('No. of clustering levels')
+            #         _ax_.set_ylabel('No. of clusters per level')
+            #         _ax_.set_title(f'No. of clustering levels: {i}')
+            # else:
+            #     if no_of_rows>1:
+            #         _ax_=axes[int(row), int(col)]
+            #         _clust_name_='nsbm_level_'+str(k)
+            #         sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][1], groupby=_clust_name_,ax=_ax_, show=False);
+            #         _ax_.set_xlabel('No. of clustering levels')
+            #         _ax_.set_ylabel('No. of clusters per level')
+            #         _ax_.set_title(f'No. of clustering levels: {i}')
+            #     elif no_of_rows==1:
+            #         _ax_=axes[int(col)]
+            #         _clust_name_='nsbm_level_'+str(k)
+            #         sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][1], groupby=_clust_name_,ax=_ax_, show=False);
+            #         _ax_.set_xlabel('No. of clustering levels')
+            #         _ax_.set_ylabel('No. of clusters per level')
+            #         _ax_.set_title(f'No. of clustering levels: {i}')
+            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            
+            _clust_name_='nsbm_level_'+str(k)
+            # ---
+            x_axis_len=int(len(np.unique(allEssentialProteins_acrossClusterLevels_forAllPatients[i][k])))
+            x_axis_plot_len=int(x_axis_len/2)
+            if x_axis_plot_len<3:
+                x_axis_plot_len=3
+            # ---
+            y_axis_len=int(len(np.unique(adata_raw.obs[_clust_name_])))
+            y_axis_plot_len=int(y_axis_len*0.75)
+            if y_axis_plot_len<3:
+                y_axis_plot_len=3
+            # ---
+            fig, axes = plt.subplots(figsize=(x_axis_plot_len, y_axis_plot_len))
+            fig.suptitle(f'\n\nDotplot of potential marker genes vs. cell type clusters - cluster level {k}')
             if k==cluster_level_max_int-2:
-                X_df=adata_X
-                _indices_={}
-                _indices_position_=[]
-                for p in cluster_level_dict[str(k)][0].keys():
-                    print(p)
-                    _indices_[p]=cluster_level_dict[str(k)][0][p]
-                    # _indices_.append=cluster_level_dict[str(k)][0][p]
-                indices_clusters=[0]*len(X_df.index)
-                idx=list(X_df.index)
-                for l in _indices_:
-                    l2=_indices_[l]
-                    # _list_indices_=list(all_columns).index()
-                    for l3 in l2:
-                        indices_clusters[int(idx.index(str(l3)))]=l
-                            
-                        # _indices_position_.append(list(all_columns).index(l))
-                # index_list=cluster_level_dict[str(k)][0][p]
-                X_df['Cluster_number']=indices_clusters
-                y_df=X_df['Cluster_number']
-                y=np.array(y_df)
-                X_df.drop(columns=["Cluster_number"], inplace=True)
-                X=np.array(X_df)
-        # # ------------------------------
-        _str_='nsbm_level_'+str(cluster_level_max_int-2)
-        
-        gene_ranking_error=1
-        while gene_ranking_error==1:
-            try:
-                sc.tl.rank_genes_groups(adata_raw, groupby=_str_, pts=True, method='wilcoxon')
-                gene_ranking_error=0
-            except:
-                pass
-        
-        DEDF_ppbm=sc.get.rank_genes_groups_df(adata_raw, group=ppbm_clusters_sorted)
-        DEDF_ppbm_AscPVals=categorize(DEDF_ppbm, ppbm_clusters_sorted)
-        adataRaw_rankGenes_names, adataRaw_rankGenes_scores, adataRaw_rankGenes_logfoldchanges, adataRaw_rankGenes_pvals, adataRaw_rankGenes_pvals_adj, adataRaw_rankGenes_pts, adataRaw_rankGenes_pts_rest=pd.DataFrame(adata_raw.uns['rank_genes_groups']['names']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['scores']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['logfoldchanges']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pvals']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pvals_adj']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pts']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pts_rest'])
-        sc.pl.rank_genes_groups(adata_raw, sharey=False, save='sc.pl.rank_genes_groups_PPBMClustering.jpg')
-        
-        DEDF_ppbm_AscPVals_0Point05_cutoff=DEDF_ppbm_AscPVals[DEDF_ppbm_AscPVals.pvals_adj<0.05]
-        DEDF_ppbm_AscPVals_0Point05_cutoff_groups=list(np.unique(DEDF_ppbm_AscPVals_0Point05_cutoff.group))
-        DEDF_ppbm_AscPVals_0Point05_cutoff_groups_sorted=[str(j) for j in sorted([int(i) for i in np.unique(DEDF_ppbm_AscPVals_0Point05_cutoff_groups)])]
-        
-        ppbm_no_of_clusters_dict_values=[[] for _ in range(len(DEDF_ppbm_AscPVals_0Point05_cutoff_groups_sorted))]
-        ppbm_no_of_clusters_dict_keys=DEDF_ppbm_AscPVals_0Point05_cutoff_groups_sorted
-        ppbm_no_of_clusters_dict=dict(zip(ppbm_no_of_clusters_dict_keys, ppbm_no_of_clusters_dict_values))
-        for index, row in DEDF_ppbm_AscPVals_0Point05_cutoff.iterrows():
-            ppbm_no_of_clusters_dict[row['group']].append(row['names'])
-        
-        
-        df=adata_raw.obs[_str_].copy().to_frame()
-        # ppbm_cell_lookup_keys=[str(j) for j in sorted([int(i) for i in np.unique(df.index)])]
-        ppbm_cell_lookup_values=[[] for _ in range(len(ppbm_clusters_sorted))]
-        # ppbm_cell_lookup_keys=[[] for _ in range(len(np.unique(ppbm_cell_lookup_keys)))]
-        ppbm_cell_lookup_keys=ppbm_clusters_sorted
-        ppbm_cell_lookup_dict=dict(zip(ppbm_cell_lookup_keys, ppbm_cell_lookup_values))
-        for index, row in df.iterrows():
-            ppbm_cell_lookup_dict[row[_str_]].append(index)
-        #////////////
-        pvals_across_clusters=[]
-        all_essential_proteins=[]
-        for key in ppbm_no_of_clusters_dict:
-            print('PPBM cluster ' + str(key) + ' in patient serial number ' + str(cnt) + ' (patient id: ' + str(i) + ')')
-            proteins_in_cluster=ppbm_no_of_clusters_dict[key]
-            cells_in_cluster=ppbm_cell_lookup_dict[key]
+                sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][k], groupby=_clust_name_, ax=axes, save=f"____PatientID-{i}_____ClusteringLevel-{k}")
+            else:
+                sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][k], groupby=_clust_name_, ax=axes)
             
-            # ----------------------
-            
-            actual_pvalue_in_cluster, simulated_p_value_dict_in_cluster=calculate_average_expressions_per_protein2(adata_X, cells_in_cluster, proteins_in_cluster)
-            
-            essential_proteins_in_cluster=[]
-            
-            for pv in actual_pvalue_in_cluster:
-                if (actual_pvalue_in_cluster[pv] < simulated_p_value_dict_in_cluster[pv]):
-                    essential_proteins_in_cluster.append(pv)
-            all_essential_proteins.append(essential_proteins_in_cluster)
         
-        all_essential_proteins_consolidated=[]
-        for j in all_essential_proteins:
-            for k in j:
-                all_essential_proteins_consolidated.append(k)
-        all_essential_proteins=list(np.unique(all_essential_proteins_consolidated))
+            # ----------------------------------------------------------------------------------------------------------------------------------------------------
+            # axes.set_xlabel('No. of clustering levels')
+            # axes.set_ylabel('No. of clusters per level')
+            # axes.set_title(f'No. of clustering levels: {i}')
+            # ----------------------------------------------------------------------------------------------------------------------------------------------------
         
+        # plt.savefig("No. of cluster levels vs. No. of clusters per cluster level.jpg", format='jpg')
+        # plt.show()
         
-        # ===============================================================================
-        
-        essential_proteins_allPatients[i]=all_essential_proteins
-        X_allPatients[i]=X
-        y_allPatients[i]=y
-        
-    # =============================================================================================
+        # ==============================================================================
+
+
 
     with open('essential_proteins.pkl', 'wb') as f:
-        pickle.dump([essential_proteins_allPatients, X_allPatients, y_allPatients], f)
+        pickle.dump([essential_proteins_allPatients, essentialProteinsPerCluster_acrossClusterLevels_forAllPatients, allEssentialProteins_acrossClusterLevels_forAllPatients], f)
 
 
-# How to run:
-# run('<path to anndata object as a pickle file>')
-
-
-
-
+    # =============================================================================================
+    # =============================================================================================
+    # =============================================================================================
+    # =============================================================================================
+    # =============================================================================================
 
 
 

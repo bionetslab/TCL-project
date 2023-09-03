@@ -68,7 +68,7 @@ from matplotlib import pyplot as plt
     
 def generate_protein_importance_for_clustering(adata_pickle_path, essential_proteins_per_patient_pickle_path):
     with open(essential_proteins_per_patient_pickle_path, 'rb') as f:
-        essential_proteins_allPatients, X_allPatients, y_allPatients=pickle.load(f)
+        essential_proteins_allPatients, essentialProteinsPerCluster_acrossClusterLevels_forAllPatients, allEssentialProteins_acrossClusterLevels_forAllPatients=pickle.load(f)
 
     # -----------
 
@@ -79,17 +79,17 @@ def generate_protein_importance_for_clustering(adata_pickle_path, essential_prot
 
     # -----------
 
-    X_allPatients_items=list(X_allPatients.items())
-    first_three_items = X_allPatients_items[0:1]
-    X_allPatients_new=dict(first_three_items)
-    X_allPatients=X_allPatients_new
+    essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_items=list(X_allPatients.items())
+    first_three_items = essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_items[0:1]
+    essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_new=dict(first_three_items)
+    essentialProteinsPerCluster_acrossClusterLevels_forAllPatients=essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_new
 
     # -----------
 
-    y_allPatients_items=list(y_allPatients.items())
-    first_three_items = y_allPatients_items[0:1]
-    y_allPatients_new=dict(first_three_items)
-    y_allPatients=y_allPatients_new
+    allEssentialProteins_acrossClusterLevels_forAllPatients_items=list(allEssentialProteins_acrossClusterLevels_forAllPatients.items())
+    first_three_items = allEssentialProteins_acrossClusterLevels_forAllPatients_items[0:1]
+    allEssentialProteins_acrossClusterLevels_forAllPatients_new=dict(first_three_items)
+    allEssentialProteins_acrossClusterLevels_forAllPatients=allEssentialProteins_acrossClusterLevels_forAllPatients_new
 
     # -----------
 

@@ -12,4 +12,3 @@ def _get_parser():
 if __name__ == '__main__':
     args = _get_parser().parse_args()
     DifferentialAnalysis_PCA_MWU_analysis.da_pca_mwu_analysis(args.adata_pickle_path, args.dependent_variable_name)
-    

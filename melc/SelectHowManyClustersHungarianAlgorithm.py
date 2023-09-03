@@ -186,7 +186,7 @@ def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
     clusterings_patientLevel_dict=clusterings_patientLevel_dict_new
 
 
-    with open('TNBC_41patients_KerenEtAl.pkl', 'rb') as f:
+    with open(adata_pickle_path, 'rb') as f:
         pickle_= pickle.load(f)
 
     cnt=-1
