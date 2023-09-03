@@ -1,1 +1,1 @@
-![scAnalyzer](/readme-images/scAnalyzer-logo.jpg)
+![scAnalyzer](/readme-images/scAnalyzer-logo.png)
