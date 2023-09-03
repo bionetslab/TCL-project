@@ -16,7 +16,7 @@ python3 1_compute_list_of_essential_proteins_for_clustering.py <adata_pickle_pat
 
 The positional arguments are:
 ```
-[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str [read more below]
+[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str
 ```
 
 The optional arguments are:
@@ -35,3 +35,23 @@ The outputs are:
 - Dotplot of potential marker genes vs. cell type clusters (example below for **patient id: 1** of the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851))
 <br/><br/><br/><br/>
 ![dotplot_____PatientID-1_____ClusteringLevel-2](readme-images/dotplot_____PatientID-1_____ClusteringLevel-2.png)
+
+
+#### ii. Protein importance:
+- In this section, we compute and visualize importances of essential proteins that drive clustering results.
+
+The positional arguments are:
+```
+[1] adata_pickle_path                                       Description: Specify path to anndata pickle data; type=str
+[2] essential_proteins_per_patient_pickle_path              Description: Specify path to essential proteins dictionary generated from the clustering (previous step); type=str
+```
+
+
+The outputs are:
+- Feature importance scores calculated using **permutation importance** on **one-vs-all classifier** for **patient id: 1** in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851):
+<br/><br/><br/><br/>
+![feature_imp_scores_patient1_PermImportance_OneVsAllClassifier](readme-images/feature_imp_scores_patient1_PermImportance_OneVsAllClassifier.png)
+
+- Feature importance scores calculated using **Gini index** on **random forest (RF) classifier** for **patient id: 1** in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851):
+<br/><br/><br/><br/>
+![feature_imp_scores_patient1_Gini_RFClassifier](readme-images/feature_imp_scores_patient1_Gini_RFClassifier.png)
