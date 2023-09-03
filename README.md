@@ -6,5 +6,5 @@ The source code for scAnalyzer (**s**ingle and **c**ell **Analyzer**). It perfor
 ## Tutorial
 ### I. Clustering
 #### i. Perform hierarchical clustering
-- Agglomerative clustering performed using the ![schist nested model](https://schist.readthedocs.io/en/latest/clustering_pbmc.html#clustering-pbmc).
+- Agglomerative clustering performed using the [schist nested model](https://schist.readthedocs.io/en/latest/clustering_pbmc.html#clustering-pbmc).
 - asdf
