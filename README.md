@@ -33,22 +33,7 @@ The optional arguments are:
 The outputs are:
 - List of essential proteins per cluster per patient
 - Dotplot of potential marker genes vs. cell type clusters (example below for **patient id: 1** of the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+##
+##
+##
 ![dotplot_____PatientID-1_____ClusteringLevel-2](readme-images/dotplot_____PatientID-1_____ClusteringLevel-2.png)
