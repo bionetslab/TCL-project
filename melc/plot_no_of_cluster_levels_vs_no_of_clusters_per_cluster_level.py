@@ -72,18 +72,7 @@ def plot_no_of_cluster_levels_vs_no_of_clusters_per_cluster_level(adata_pickle_p
         
 
     with open(adata_pickle_path, "rb") as f:
-        clusterings_patientLevel_dict = pickle.load(f)
-
-    clusterings_patientLevel_dict_items=list(clusterings_patientLevel_dict.items())
-    first_three_items = clusterings_patientLevel_dict_items[0:1]
-    clusterings_patientLevel_dict_new=dict(first_three_items)
-    clusterings_patientLevel_dict=clusterings_patientLevel_dict_new
-
-
-    with open(clusterings_patientLevel_dict_path, 'rb') as f:
-        pickle_= pickle.load(f)
-
-    cnt=-1
+        pickle_ = pickle.load(f)
 
     # ------
     pickle_items=list(pickle_.items())
@@ -91,6 +80,19 @@ def plot_no_of_cluster_levels_vs_no_of_clusters_per_cluster_level(adata_pickle_p
     pickle_new=dict(first_three_items)
     pickle_=pickle_new
     # ------
+
+
+    with open(clusterings_patientLevel_dict_path, 'rb') as f:
+        clusterings_patientLevel_dict= pickle.load(f)
+    
+    # ---
+    clusterings_patientLevel_dict_items=list(clusterings_patientLevel_dict.items())
+    first_three_items = clusterings_patientLevel_dict_items[0:1]
+    clusterings_patientLevel_dict_new=dict(first_three_items)
+    clusterings_patientLevel_dict=clusterings_patientLevel_dict_new
+    # ---
+
+    cnt=-1
 
     max_cluster_level=0
     min_cluster_level=float('inf')
@@ -100,9 +102,10 @@ def plot_no_of_cluster_levels_vs_no_of_clusters_per_cluster_level(adata_pickle_p
     for i in pickle_:
         
         cnt+=1
-        
+
         adata=pickle_[i]
         adata_X=adata.to_df()
+        
         no_of_cells=len(adata_X.index)
         
         no_of_clusterings=3

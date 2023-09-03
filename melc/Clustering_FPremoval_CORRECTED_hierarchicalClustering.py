@@ -48,7 +48,6 @@ from pingouin import mwu
 import os.path
 import warnings
 import pandas as pd
-patient_id=20751
 
 def categorize(dataframe, leiden_clusters_sorted):
     df = pd.DataFrame(columns=['group'])
@@ -115,12 +114,11 @@ def calculate_average_expressions_per_protein2(adata_X, cells_in_cluster, protei
             
             
 # def run(adata_pickle_path, user_selected_cluster_level):
-def run(adata_pickle_path):
+def run(adata_pickle_path, user_selected_cluster_level):
 
     with open(adata_pickle_path, 'rb') as f:
         pickle_= pickle.load(f)
     res = list(pickle_.keys())[0]
-    all_columns=pickle_[res].to_df().columns
 
     cnt=-1
     
@@ -133,18 +131,20 @@ def run(adata_pickle_path):
     essential_proteins_allPatients={}
     essentialProteinsPerCluster_acrossClusterLevels_forAllPatients={}
     allEssentialProteins_acrossClusterLevels_forAllPatients={}
+    X_allPatients={}
+    y_allPatients={}
     # -------
 
     for i in pickle_:
-        
         cnt+=1
         print('Patient serial number' + str(cnt) + ' (patient id: ' + str(i) + ')')
         print('====================================================================')
         adata=pickle_[i]
         adata_X=adata.to_df()
+        X_allPatients[i]=np.array(adata_X)
         adata_raw=adata.copy()
         sc.pp.neighbors(adata_raw)
-        # ------------------------------
+        # ===========================================================================================
         scs.inference.nested_model(adata_raw)
         # ---
         uns_keys=str(adata_raw.uns_keys)
@@ -159,6 +159,25 @@ def run(adata_pickle_path):
         essentialProteinsPerCluster_acrossClusterLevels={}
         allEssentialProteins_acrossClusterLevels={}
     	# ===========================================================================================
+        if user_selected_cluster_level=="complete":
+            selected_cluster_level=cluster_level_max_int-2
+        else:
+            try:
+                selected_cluster_level=int(user_selected_cluster_level)
+            except:
+                selected_cluster_level=cluster_level_max_int-2
+        # ---
+        cluster_level_range=list(range(1, cluster_level_max_int-1))
+        if selected_cluster_level==0:
+            selected_cluster_level=cluster_level_max_int-2
+        elif selected_cluster_level>0:
+            if not(selected_cluster_level in cluster_level_range):
+                selected_cluster_level=cluster_level_max_int-2
+        elif selected_cluster_level<0:
+            selected_cluster_level=cluster_level_max_int-2-selected_cluster_level
+            if not(selected_cluster_level in cluster_level_range):
+                selected_cluster_level=cluster_level_max_int-2
+        # ===========================================================================================
         
         for k in range(1, cluster_level_max_int-1):
             print('Cluster number= '+str(k)+' in '+' in patient serial number '+str(cnt)+' (patient id: ' + str(i) + ')')
@@ -172,6 +191,8 @@ def run(adata_pickle_path):
             ppbm_no_of_clusters_dict=dict(zip(ppbm_no_of_clusters_dict_keys, ppbm_no_of_clusters_dict_values))
             # ---
             df_clusters=pd.DataFrame(adata_raw.obs[cluster_name])
+            if k==selected_cluster_level:
+                y_allPatients[i]=np.array(df_clusters)
             for index, row in df_clusters.iterrows():
                 ppbm_no_of_clusters_dict[row[cluster_name]].append(index)
             # ---
@@ -188,7 +209,6 @@ def run(adata_pickle_path):
             # -----
             DEDF_ppbm=sc.get.rank_genes_groups_df(adata_raw, group=ppbm_clusters_sorted)
             DEDF_ppbm_AscPVals=categorize(DEDF_ppbm, ppbm_clusters_sorted)
-            adataRaw_rankGenes_names, adataRaw_rankGenes_scores, adataRaw_rankGenes_logfoldchanges, adataRaw_rankGenes_pvals, adataRaw_rankGenes_pvals_adj, adataRaw_rankGenes_pts, adataRaw_rankGenes_pts_rest=pd.DataFrame(adata_raw.uns['rank_genes_groups']['names']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['scores']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['logfoldchanges']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pvals']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pvals_adj']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pts']), pd.DataFrame(adata_raw.uns['rank_genes_groups']['pts_rest'])
             sc.pl.rank_genes_groups(adata_raw, sharey=False, save='sc.pl.rank_genes_groups_PPBMClustering.jpg')
             # -----
             DEDF_ppbm_AscPVals_0Point05_cutoff=DEDF_ppbm_AscPVals[DEDF_ppbm_AscPVals.pvals_adj<0.05]
@@ -200,7 +220,6 @@ def run(adata_pickle_path):
             ppbm_no_of_clusters_dict=dict(zip(ppbm_no_of_clusters_dict_keys, ppbm_no_of_clusters_dict_values))
             for index, row in DEDF_ppbm_AscPVals_0Point05_cutoff.iterrows():
                 ppbm_no_of_clusters_dict[row['group']].append(row['names'])
-        
             # -----
             df=adata_raw.obs[_str_].copy().to_frame()
             # ppbm_cell_lookup_keys=[str(j) for j in sorted([int(i) for i in np.unique(df.index)])]
@@ -323,7 +342,7 @@ def run(adata_pickle_path):
             # ---
             fig, axes = plt.subplots(figsize=(x_axis_plot_len, y_axis_plot_len))
             fig.suptitle(f'\n\nDotplot of potential marker genes vs. cell type clusters - cluster level {k}')
-            if k==cluster_level_max_int-2:
+            if k==selected_cluster_level:
                 sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][k], groupby=_clust_name_, ax=axes, save=f"____PatientID-{i}_____ClusteringLevel-{k}")
             else:
                 sc.pl.dotplot(adata_raw, allEssentialProteins_acrossClusterLevels_forAllPatients[i][k], groupby=_clust_name_, ax=axes)
@@ -343,7 +362,7 @@ def run(adata_pickle_path):
 
 
     with open('essential_proteins.pkl', 'wb') as f:
-        pickle.dump([essential_proteins_allPatients, essentialProteinsPerCluster_acrossClusterLevels_forAllPatients, allEssentialProteins_acrossClusterLevels_forAllPatients], f)
+        pickle.dump([essential_proteins_allPatients, essentialProteinsPerCluster_acrossClusterLevels_forAllPatients, allEssentialProteins_acrossClusterLevels_forAllPatients, X_allPatients, y_allPatients], f)
 
 
     # =============================================================================================

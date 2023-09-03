@@ -47,6 +47,11 @@ import schist as scs
 from pingouin import mwu
 import graph_tools as gt
 
+def FindMaxLength(lst):
+    maxList = max(lst, key=len)
+    maxLength = len(maxList)
+    return maxList, maxLength
+
 def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
     
     with open(adata_pickle_path, 'rb') as f:

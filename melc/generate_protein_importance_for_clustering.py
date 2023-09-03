@@ -68,18 +68,18 @@ from matplotlib import pyplot as plt
     
 def generate_protein_importance_for_clustering(adata_pickle_path, essential_proteins_per_patient_pickle_path):
     with open(essential_proteins_per_patient_pickle_path, 'rb') as f:
-        essential_proteins_allPatients, essentialProteinsPerCluster_acrossClusterLevels_forAllPatients, allEssentialProteins_acrossClusterLevels_forAllPatients=pickle.load(f)
+        essential_proteins_allPatients, essentialProteinsPerCluster_acrossClusterLevels_forAllPatients, allEssentialProteins_acrossClusterLevels_forAllPatients, X_allPatients, y_allPatients=pickle.load(f)
 
     # -----------
 
     essential_proteins_allPatients_items=list(essential_proteins_allPatients.items())
     first_three_items = essential_proteins_allPatients_items[0:1]
     essential_proteins_allPatient_new=dict(first_three_items)
-    essential_proteins_allPatient=essential_proteins_allPatient_new
+    essential_proteins_allPatients=essential_proteins_allPatient_new
 
     # -----------
 
-    essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_items=list(X_allPatients.items())
+    essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_items=list(essentialProteinsPerCluster_acrossClusterLevels_forAllPatients.items())
     first_three_items = essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_items[0:1]
     essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_new=dict(first_three_items)
     essentialProteinsPerCluster_acrossClusterLevels_forAllPatients=essentialProteinsPerCluster_acrossClusterLevels_forAllPatients_new
@@ -90,6 +90,20 @@ def generate_protein_importance_for_clustering(adata_pickle_path, essential_prot
     first_three_items = allEssentialProteins_acrossClusterLevels_forAllPatients_items[0:1]
     allEssentialProteins_acrossClusterLevels_forAllPatients_new=dict(first_three_items)
     allEssentialProteins_acrossClusterLevels_forAllPatients=allEssentialProteins_acrossClusterLevels_forAllPatients_new
+
+    # -----------
+
+    X_allPatients_items=list(X_allPatients.items())
+    first_three_items = X_allPatients_items[0:1]
+    X_allPatients_new=dict(first_three_items)
+    X_allPatients=X_allPatients_new
+
+    # -----------
+
+    y_allPatients_items=list(y_allPatients.items())
+    first_three_items = y_allPatients_items[0:1]
+    y_allPatients_new=dict(first_three_items)
+    y_allPatients=y_allPatients_new
 
     # -----------
 
@@ -125,6 +139,9 @@ def generate_protein_importance_for_clustering(adata_pickle_path, essential_prot
         
         X=X_allPatients[i][:,selected_proteins_index]
         y=y_allPatients[i]
+
+        X=X[0:10]
+        y=y[0:10]
         
         # --------------------- Permutation importance on one-vs-all classifier: -----------------------
         clf = OneVsRestClassifier(SVC()).fit(X, y)
