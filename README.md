@@ -29,3 +29,8 @@ The optional arguments are:
     - If value is 'complete': That represents the last (n-th) cluster. Please note that if your input is "complete", just type it in normally without inverted commas/ quotation marks -- the program is capable of reading strings directly without any quotation symbols.
     - For all other values (i. negative integers; ii. fractional values; iii. any strings other than "complete"; iv. integer value is out of range of [1, n] where n is the total number of clusters): the default is n.
 ```
+
+Output:
+- List of essential proteins per cluster per patient
+- Dotplot of potential marker genes vs. cell type clusters (example below for **patient id: 1** of the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851))
+![dotplot_____PatientID-1_____ClusteringLevel-2](figures/dotplot_____PatientID-1_____ClusteringLevel-2.pdf)
