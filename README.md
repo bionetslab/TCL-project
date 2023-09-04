@@ -40,6 +40,12 @@ The outputs are:
 #### ii. Protein importance:
 - In this section, we compute and visualize importances of essential proteins that drive clustering results.
 
+###### Running the protein importance computation:
+Open command prompt/ terminal, then run:
+```bash
+python3 2_visualize_importances_of_essential_proteins_for_clustering.py <adata_pickle_path> <essential_proteins_per_patient_pickle_path>
+```
+
 The positional arguments are:
 ```
 [1] adata_pickle_path                                       Description: Specify path to anndata pickle data; type=str
@@ -55,3 +61,42 @@ The outputs are:
 - Feature importance scores calculated using **Gini index** on **random forest (RF) classifier** for **patient id: 1** in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851):
 <br/><br/><br/><br/>
 ![feature_imp_scores_patient1_Gini_RFClassifier](readme-images/feature_imp_scores_patient1_Gini_RFClassifier.png)
+
+- Feature importance scores calculated using **permutation importance** on **random forest (RF) classifier** for **patient id: 1** in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851):
+<br/><br/><br/><br/>
+![feature_imp_scores_patient1_PermImportance_RFClassifier](readme-images/feature_imp_scores_patient1_PermImportance_RFClassifier.png)
+
+### II. Cluster analyses (deciding on the optimal cluster level)
+#### i. Maximum bipartite matching between clusterings:
+- The similarity scores between clusterings have been obtained for all patients, and their distributions have been plotted against cluster level in the schist nested model.
+
+###### Running the protein importance computation:
+Open command prompt/ terminal, then run:
+```bash
+python3 3_plot_of_robustness_vs_intercluster_similarity.py <adata_pickle_path> --method <method>
+```
+
+The positional arguments are:
+```
+[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str
+```
+
+The optional arguments are:
+```
+[1] --method                            Description: Specify cluster agreement method between clusterings; type=str; options={"top-down", "bottom-up"}; default='top-down' [read more below]
+
+Note: The schist hierarchical clustering method is agglomerative, meaning bottom-up.
+```
+
+The outputs are:
+- Plot of robustness vs. inter-cluster similarity (example below for **patient id: 1** of the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851)):
+<br/><br/><br/><br/>
+(A) Top-down cluster mapping:
+<br/><br/><br/><br/>
+![Plot of robustness vs. inter-cluster similarity (method/ top-down)](readme-images/Plot of robustness vs. inter-cluster similarity (method/ top-down).png)
+
+
+
+
+
+    
