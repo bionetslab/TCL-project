@@ -95,7 +95,41 @@ The outputs are:
 <br/><br/><br/><br/>
 ![Plot_of_robustness_vs_inter_cluster_similarity_method_topDown](readme-images/Plot_of_robustness_vs_inter_cluster_similarity_method_topDown.png)
 
+<br/><br/><br/><br/>
+(B) Bottom-up cluster mapping:
+<br/><br/><br/><br/>
+![Plot_of_robustness_vs_inter_cluster_similarity_method_bottomUp](readme-images/Plot_of_robustness_vs_inter_cluster_similarity_method_bottomUp.png)
 
+<br/><br/><br/><br/>
+<br/><br/><br/><br/>
+
+- You can decide on the optimal cluster evel based on these plots.
+- For our case study on the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851) dataset, we will just set optimal cluster level $n = N-1$, where $N$ is the highest cluster level in the schist agglomerative model, where there is just one cluster.
+
+
+
+
+
+#### ii. Measure no. of clusters per cluster level:
+
+- This may further help some users decide how many cluster levels to set for the schist agglomerative clustering model.
+
+###### Running the computation for no. of clusters per cluster level:
+Open command prompt/ terminal, then run:
+```bash
+python3 4_plot_no_of_cluster_levels_vs_no_of_clusters_per_cluster_level.py <adata_pickle_path> <>
+```
+
+The positional arguments are:
+```
+[1] adata_pickle_path                                                     Description: Specify path to anndata pickle data; type=str
+[2] clusterings_patientLevel_dict_path                                    Specify path to clustering combinations calculated in the previous step (saved as 'clusterings_patientLevel_dict.pkl' in step **II.i. Maximum bipartite matching between clusterings**)
+```
+
+The outputs are:
+- Plot of no. of clusters per cluster level across all samples in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851):
+<br/><br/><br/><br/>
+![No. of cluster levels vs. No. of clusters per cluster level](readme-images/No. of cluster levels vs. No. of clusters per cluster level.png)
 
 
 
