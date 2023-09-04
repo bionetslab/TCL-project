@@ -156,8 +156,53 @@ The positional arguments are:
 Note: The aforementioned variable <dependent_variable_name> should be present under observation metadata (obsm) of the anndata onject containing gene/ protein expression.
 ```
 
-
 The outputs are:
 - Bar plot of significant protein correlation p-values
 <br/><br/><br/><br/>
 ![protein_correlation_pvalues_impProteins_allPatients.png](readme-images/protein_correlation_pvalues_impProteins_allPatients.png)
+
+
+
+
+
+
+
+#### ii. Check multiple protein profiles
+
+
+parser.add_argument('--N', type=int, default=2, help='Please specify number of proteins to be analyzed within protein profile.')
+parser.add_argument('--threshold', type=float, default=0.5, help='Please specify minimum value over which protein expressions are considered for further analyses.')
+    
+
+- Count all cells containing all N-combinaions of proteins present above the threshold.
+- Subsequently, perform MWU-test on no. of cells protein profiles expressed in, across conditions.
+- Retain protein profiles with p-values<0.05 as significant protein profiles.
+
+
+###### Obtaining the essential protein correlations:
+Open command prompt/ terminal, then run:
+```bash
+python3 5_DA_protein_correlations.py <adata_pickle_path> <dependent_variable_name>
+```
+
+The positional arguments are:
+```
+[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str
+[2] dependent_variable_name             Description: Specify the name of the dependent variable; type=str
+    
+Note: The aforementioned variable <dependent_variable_name> should be present under observation metadata (obsm) of the anndata onject containing gene/ protein expression.
+```
+
+The optional arguments are:
+```
+[1] --N                         Description: Specify number of proteins to be analyzed within protein profile; type=int, default=2
+[2] --threshold                 Description: Specify minimum value over which protein expressions are considered for further analyses; type=float, default=0.5
+```
+
+
+The outputs are:
+- Bar plot of significant, multiple protein coexpression p-values
+<br/><br/><br/><br/>
+![multi_protein_coexpression_pvalues_impProteins_allPatients.png](readme-images/multi_protein_coexpression_pvalues_impProteins_allPatients.png)
+<br/><br/><br/><br/>
+Nothing found for N=2, threshold=0.5, across all patients in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851).
