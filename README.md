@@ -129,7 +129,7 @@ The positional arguments are:
 The outputs are:
 - Plot of no. of clusters per cluster level across all samples in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851):
 <br/><br/><br/><br/>
-![No. of cluster levels vs. No. of clusters per cluster level](readme-images/No. of cluster levels vs. No. of clusters per cluster level.png)
+![No_of_cluster_levels_vs_No_of_clusters_per_cluster_level](readme-images/No_of_cluster_levels_vs_No_of_clusters_per_cluster_level.png)
 
 
 
