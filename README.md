@@ -133,4 +133,31 @@ The outputs are:
 
 
 
+
+
+
+### III. Differential analyses (before cell type annotations)
+#### i. Protein correlations
+- Generate protein correlation matrix.
+- Subsequently, perform MWU-test on protein correlation values between conditions.
+- Retain correlations with p-values<0.05 as important protein-protein correlations.
+
+###### Obtaining the essential protein correlations:
+Open command prompt/ terminal, then run:
+```bash
+python3 5_DA_protein_correlations.py <adata_pickle_path> <dependent_variable_name>
+```
+
+The positional arguments are:
+```
+[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str
+[2] dependent_variable_name             Description: Specify the name of the dependent variable; type=str
     
+Note: The aforementioned variable <dependent_variable_name> should be present under observation metadata (obsm) of the anndata onject containing gene/ protein expression.
+```
+
+
+The outputs are:
+- Bar plot of significant protein correlation p-values
+<br/><br/><br/><br/>
+![protein_correlation_pvalues_impProteins_allPatients.png](readme-images/protein_correlation_pvalues_impProteins_allPatients.png)
