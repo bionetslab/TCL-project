@@ -229,4 +229,8 @@ The outputs are:
 # Under development:
 
 ### IV. Differential analyses (after cell type annotations)
-#### i. Protein correlations
+#### i. Neighborhood enrichment, MWU-test
+#### ii. Co-occurence, MWU-test
+#### iii. Centrality scores
+#### iv. Ripley's statistics
+#### v. Spatial autocorrelation
