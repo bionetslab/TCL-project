@@ -163,21 +163,10 @@ The outputs are:
 
 
 
-
-
-
-
 #### ii. Check multiple protein profiles
-
-
-parser.add_argument('--N', type=int, default=2, help='Please specify number of proteins to be analyzed within protein profile.')
-parser.add_argument('--threshold', type=float, default=0.5, help='Please specify minimum value over which protein expressions are considered for further analyses.')
-    
-
 - Count all cells containing all N-combinaions of proteins present above the threshold.
 - Subsequently, perform MWU-test on no. of cells protein profiles expressed in, across conditions.
 - Retain protein profiles with p-values<0.05 as significant protein profiles.
-
 
 ###### Obtaining the essential protein correlations:
 Open command prompt/ terminal, then run:
@@ -199,10 +188,45 @@ The optional arguments are:
 [2] --threshold                 Description: Specify minimum value over which protein expressions are considered for further analyses; type=float, default=0.5
 ```
 
-
 The outputs are:
 - Bar plot of significant, multiple protein coexpression p-values
 <br/><br/><br/><br/>
 ![multi_protein_coexpression_pvalues_impProteins_allPatients.png](readme-images/multi_protein_coexpression_pvalues_impProteins_allPatients.png)
 <br/><br/><br/><br/>
 Nothing found for N=2, threshold=0.5, across all patients in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851).
+
+
+
+#### iii. PCA MWU analysis for finding important proteins
+- First principal component is derived from each of the cells. MWU-test is performed on the original data.
+- Each of the proteins are randomly shuffled, and the first step is repeated.
+- Provided that the p-value of the actual protein expression between conditions<0.05: Then, for proteins where the p-value decreases on random shuffling are considered unimportant. The proteins where p-value goes up on random shuffling, are considered important.
+
+###### Obtaining the essential protein correlations:
+Open command prompt/ terminal, then run:
+```bash
+python3 5_DA_protein_correlations.py <adata_pickle_path> <dependent_variable_name>
+```
+
+The positional arguments are:
+```
+[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str
+[2] dependent_variable_name             Description: Specify the name of the dependent variable; type=str
+    
+Note: The aforementioned variable <dependent_variable_name> should be present under observation metadata (obsm) of the anndata onject containing gene/ protein expression.
+```
+
+The outputs are:
+- Bar plot of p-values of significant proteins (p-value<0.05) [Note: there is a bug in the code; the p-value<0.05 check has not been done.]
+<br/><br/><br/><br/>
+![DA_significant_protein_expressions_pvalues.png](readme-images/DA_significant_protein_expressions_pvalues.png)
+
+
+##
+##
+##
+# Under development:
+# ------------------
+
+### IV. Differential analyses (after cell type annotations)
+#### i. Protein correlations
