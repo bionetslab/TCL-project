@@ -93,7 +93,7 @@ The outputs are:
 <br/><br/><br/><br/>
 (A) Top-down cluster mapping:
 <br/><br/><br/><br/>
-![Plot of robustness vs. inter-cluster similarity, method top-down](readme-images/Plot of robustness vs. inter-cluster similarity, method top-down.png)
+![Plot of robustness vs. inter-cluster similarity method top-down](readme-images/Plot of robustness vs. inter-cluster similarity method top-down.png)
 
 
 
