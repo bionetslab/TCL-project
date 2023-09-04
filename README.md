@@ -225,8 +225,8 @@ The outputs are:
 ##
 ##
 ##
+
 # Under development:
-# ------------------
 
 ### IV. Differential analyses (after cell type annotations)
 #### i. Protein correlations
