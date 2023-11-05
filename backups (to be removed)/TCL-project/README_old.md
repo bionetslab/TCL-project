@@ -195,6 +195,33 @@ The outputs are:
 <br/><br/><br/><br/>
 Nothing found for N=2, threshold=0.5, across all patients in the [TNBC MIBI dataset](https://www.science.org/doi/full/10.1126/sciadv.aax5851).
 
+
+
+#### iii. PCA MWU analysis for finding important proteins (removed)
+- First principal component is derived from each of the cells. MWU-test is performed on the original data.
+- Each of the proteins are randomly shuffled, and the first step is repeated.
+- Provided that the p-value of the actual protein expression between conditions<0.05: Then, for proteins where the p-value decreases on random shuffling are considered unimportant. The proteins where p-value goes up on random shuffling, are considered important.
+
+###### Obtaining the essential protein correlations:
+Open command prompt/ terminal, then run:
+```bash
+python3 7_DA_PCA_MWU_analysis.py <adata_pickle_path> <dependent_variable_name>
+```
+
+The positional arguments are:
+```
+[1] adata_pickle_path                   Description: Specify path to anndata pickle data; type=str
+[2] dependent_variable_name             Description: Specify the name of the dependent variable; type=str
+    
+Note: The aforementioned variable <dependent_variable_name> should be present under observation metadata (obsm) of the anndata onject containing gene/ protein expression.
+```
+
+The outputs are:
+- Bar plot of p-values of significant proteins (p-value<0.05) [Note: there is a bug in the code; the p-value<0.05 check has not been done.]
+<br/><br/><br/><br/>
+![DA_significant_protein_expressions_pvalues.png](readme-images/DA_significant_protein_expressions_pvalues.png)
+
+
 ##
 ##
 ##

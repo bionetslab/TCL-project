@@ -113,6 +113,7 @@ def da_multiple_protein_profiles(adata_pickle_path, dependent_variable_name, N, 
         
 
     important_proteins=dict(zip(imp_proteins_names, imp_proteins_pValues))
+    # print(important_proteins)
 
 
 
@@ -138,6 +139,8 @@ def da_multiple_protein_profiles(adata_pickle_path, dependent_variable_name, N, 
         plt.ylabel('p-value (MWU test)')
         plt.savefig(f'multi_protein_coexpression_pvalues_impProteins_allPatients.pdf', format='pdf')
         plt.show()
+    else:
+        print("None found!")
 
 
 

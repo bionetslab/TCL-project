@@ -17,22 +17,32 @@ import math
 from collections import Counter
 import scanpy as sc
 import networkx as nx
+import pandas as pd
+import numpy as np
 import itertools
 import random
 from scipy.stats import mannwhitneyu
 import os
 import warnings
+import pickle
+import matplotlib.pyplot as plt
+import pandas as pd
 import gseapy as gp
 from matplotlib import pyplot as plt
 from matplotlib_venn import venn2
 import mygene
 import seaborn as sns
 from gseapy import barplot, dotplot
+import random
 import matplotlib.pyplot as plt
+import numpy as np
 import decoupler as dc
 from numpy.random import default_rng
 from copy import deepcopy
+import scanpy as sc
 import squidpy as sq
+import time
+# from neighborhood_enrichment import neighborhood_enrichment
 import schist as scs
 from pingouin import mwu
 import graph_tools as gt
@@ -176,7 +186,7 @@ def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
         clusterings_patientLevel_dict = pickle.load(f)
 
     clusterings_patientLevel_dict_items=list(clusterings_patientLevel_dict.items())
-    first_three_items = clusterings_patientLevel_dict_items[0:2]
+    first_three_items = clusterings_patientLevel_dict_items[0:1]
     clusterings_patientLevel_dict_new=dict(first_three_items)
     clusterings_patientLevel_dict=clusterings_patientLevel_dict_new
 
@@ -188,12 +198,11 @@ def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
 
     # ------
     pickle_items=list(pickle_.items())
-    first_three_items = pickle_items[0:2]
+    first_three_items = pickle_items[0:1]
     pickle_new=dict(first_three_items)
     pickle_=pickle_new
     # ------
 
-    patient_wise_df=[]
     for i in pickle_:
         
         cnt+=1
@@ -223,113 +232,162 @@ def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
         
         # _scores_=[]
         
-        _score_2=[]
-
         clust_comb_count=-1
-        clust_comb_indices_str=''
-        cluster_wise_df_=[]
         for clust_comb_iter in clustering_combinations:
             clust_comb_count+=1
-            
-            # ---
-            if clust_comb_count!=0:
-                clust_comb_indices_str+='; ('+str(clust_comb_iter[0])+', '+str(clust_comb_iter[1])+')'
-            else:
-                clust_comb_indices_str+='('+str(clust_comb_iter[0])+', '+str(clust_comb_iter[1])+')'
-            # ---
-            
             clust_comb_keys.append(clust_comb_iter)
             B1_dict=clusterings_patientLevel_dict[i][0][clust_comb_iter[0]][0]
             B1_dict_copy=B1_dict.copy()
             B2_dict=clusterings_patientLevel_dict[i][0][clust_comb_iter[1]][0]
             B2_dict_copy=B2_dict.copy()
             equal_clusters=0
-            # -----
-            if len(set(B1_dict.keys())) <= len(set(B2_dict.keys())):
-                common_keys_len=len(set(B1_dict.keys()))
-                lesser_hierarchical_clusters=B1_dict.copy()
-                higher_hierarchical_clusters=B2_dict.copy()
+            if len(set(B1_dict.keys())) == len(set(B2_dict.keys())):
+                equal_clusters=1
+                common_keys=list(set(B1_dict.keys()).intersection(set(B2_dict.keys())))
+                common_keys=[str(i1) for i1 in sorted([int(i2) for i2 in np.unique(common_keys)])]
+            
+                # ------------------------------------------
+            
+                list_1=[]
+                list_2=[]
+                clustering_level=[]
+                if equal_clusters==1:
+                    _score_=[]
+                    for j in range(len(common_keys)):
+                        list_1.append(common_keys[j])
+                        list_2.append(common_keys[j])
+                        clustering_level.append(j)
+                        # ---
+                        list1=list(B1_dict[list_1[j]][0].keys())
+                        list2=list(B2_dict[list_2[j]][0].keys())
+                        unique_combinations=list(itertools.product(list1, list2))
+                        # ---  
+                        edge_weights=[]
+                        B1_nodes=[]
+                        B2_nodes=[]
+                        B_nodes=[]
+                        Edge_weights=[]
+                        All_edge_attributes=[]
+                        for k in common_keys:
+                            b1_node='B1_'+str(k)
+                            B1_nodes.append(b1_node)
+                            b2_node='B2_'+str(k)
+                            B2_nodes.append(b2_node)
+                            B_nodes.append(b1_node)
+                            B_nodes.append(b2_node)
+                            # ---
+                            b1_node_set=set(list(clusterings_patientLevel_dict[i][0][clust_comb_iter[0]][0][k][0].keys()))
+                            b2_node_set=set(list(clusterings_patientLevel_dict[i][0][clust_comb_iter[1]][0][k][0].keys()))
+                            b1_b2_intersection=b1_node_set.intersection(b2_node_set)
+                            # ---
+                            edge_weight=len(list(b1_b2_intersection))
+                            Edge_weights.append(edge_weight)
+                            all_edge_attributes=(b1_node, b2_node, {'weight': edge_weight})
+                            All_edge_attributes.append(all_edge_attributes)
+                            # ---
+                        B1_nodes=list(np.unique(B1_nodes))
+                        B2_nodes=list(np.unique(B2_nodes))
+                        B_nodes=list(np.unique(B_nodes))
+                        # ---
+                        B=nx.Graph()
+                        nx.draw(B)
+                        B.add_nodes_from(B1_nodes, bipartite=0)
+                        B.add_nodes_from(B2_nodes, bipartite=1)
+                        B.add_edges_from(All_edge_attributes)
+                        # ---
+                        max_bip_matchings=sorted(nx.max_weight_matching(B))
+                        score=0
+                        for edges_ in max_bip_matchings:
+                            score+=B[edges_[0]][edges_[1]]["weight"]
+                        score/=no_of_cells
+                        print(score)
+                        _score_.append(score)
             else:
-                common_keys_len=len(set(B2_dict.keys()))
-                lesser_hierarchical_clusters=B2_dict.copy()
-                higher_hierarchical_clusters=B1_dict.copy()
+                if len(set(B1_dict.keys())) < len(set(B2_dict.keys())):
+                    common_keys_len=len(set(B1_dict.keys()))
+                    lesser_hierarchical_clusters=B1_dict.copy()
+                    higher_hierarchical_clusters=B2_dict.copy()
+                else:
+                    common_keys_len=len(set(B2_dict.keys()))
+                    lesser_hierarchical_clusters=B2_dict.copy()
+                    higher_hierarchical_clusters=B1_dict.copy()
             
                 # ----------------------------------------------------------------------
                 # ----------------------------------------------------------------------
                 # ----------------------------------------------------------------------
                 
-            common_keys_lesser_hierarchical=[]
-            common_keys_higher_hierarchical=[]
-            for p in range(len(lesser_hierarchical_clusters)):
-                if method=='top-down':
-                    common_keys_lesser_hierarchical.append(list(reversed(lesser_hierarchical_clusters))[p])
-                    common_keys_higher_hierarchical.append(list(reversed(higher_hierarchical_clusters))[p])
-                elif method=='bottom-up':
-                    common_keys_lesser_hierarchical.append(list(lesser_hierarchical_clusters)[p])
-                    common_keys_higher_hierarchical.append(list(higher_hierarchical_clusters)[p])
+                common_keys_lesser_hierarchical=[]
+                common_keys_higher_hierarchical=[]
+                for p in range(len(lesser_hierarchical_clusters)):
+                    if method=='top-down':
+                        common_keys_lesser_hierarchical.append(list(reversed(lesser_hierarchical_clusters))[p])
+                        common_keys_higher_hierarchical.append(list(reversed(higher_hierarchical_clusters))[p])
+                    elif method=='bottom-up':
+                        common_keys_lesser_hierarchical.append(list(lesser_hierarchical_clusters)[p])
+                        common_keys_higher_hierarchical.append(list(higher_hierarchical_clusters)[p])
                 
-            common_keys_lesser_hierarchical=[str(i1) for i1 in sorted([int(i2) for i2 in np.unique(common_keys_lesser_hierarchical)])]
-            common_keys_higher_hierarchical=[str(i1) for i1 in sorted([int(i2) for i2 in np.unique(common_keys_higher_hierarchical)])]
+                common_keys_lesser_hierarchical=[str(i1) for i1 in sorted([int(i2) for i2 in np.unique(common_keys_lesser_hierarchical)])]
+                common_keys_higher_hierarchical=[str(i1) for i1 in sorted([int(i2) for i2 in np.unique(common_keys_higher_hierarchical)])]
                 
-            # ------------------------------------------------------------------------    
-            # ------------------------------------------------------------------------
-            # ------------------------------------------------------------------------
+                # ------------------------------------------------------------------------    
+                # ------------------------------------------------------------------------
+                # ------------------------------------------------------------------------
                 
-            lesser_clusters=[]
-            for j in common_keys_lesser_hierarchical:
-                lesser_clusters_=list(lesser_hierarchical_clusters[j][0].keys())
-                lesser_clusters.append(lesser_clusters_)
-                
-                
-            higher_clusters=[]
-            for j in common_keys_higher_hierarchical:
-                higher_clusters_=list(higher_hierarchical_clusters[j][0].keys())
-                higher_clusters.append(higher_clusters_)
+                lesser_clusters=[]
+                for j in common_keys_lesser_hierarchical:
+                    lesser_clusters_=list(lesser_hierarchical_clusters[j][0].keys())
+                    lesser_clusters.append(lesser_clusters_)
                 
                 
-            # # # lesserCluster_higherCluster_dict=dict(zip(LESSER_CLUSTERS, HIGHER_CLUSTERS))
-            # _score_2=[]
-            for j in range(len(common_keys_lesser_hierarchical)):
-                # print(j)
-                len_lesser_clusters=len(lesser_clusters[j])
-                len_higher_clusters=len(higher_clusters[j])
+                higher_clusters=[]
+                for j in common_keys_higher_hierarchical:
+                    higher_clusters_=list(higher_hierarchical_clusters[j][0].keys())
+                    higher_clusters.append(higher_clusters_)
                 
-                no_of_cluster_differences=len_lesser_clusters-len_higher_clusters
-                # print(no_of_cluster_differences)
                 
-                extra_cluster_names=[]
-                lesser_clusters_new=[]
-                higher_clusters_new=[]
-                error_different_no_of_clusters=0
+                # # # lesserCluster_higherCluster_dict=dict(zip(LESSER_CLUSTERS, HIGHER_CLUSTERS))
                 
-                if no_of_cluster_differences==0:
+                for j in range(len(common_keys_lesser_hierarchical)):
+                    # print(j)
+                    len_lesser_clusters=len(lesser_clusters[j])
+                    len_higher_clusters=len(higher_clusters[j])
+                    
+                    no_of_cluster_differences=len_lesser_clusters-len_higher_clusters
                     # print(no_of_cluster_differences)
                     
-                    pass
-                
-                else:
-                    if no_of_cluster_differences!=0:
-                        if no_of_cluster_differences>0:
-                            for l in range(no_of_cluster_differences):
-                                # print(l)
-                                error_different_no_of_clusters=1
-                                extra_cluster_names.append('extra_'+str(int(l)))
-                                higher_clusters_new.append('extra_'+str(int(l)))
-                                new_='extra_'+str(int(l))
-                                # higher_hierarchical_clusters[list(higher_hierarchical_clusters.keys())[j]][0][new_]=[]
-                                higher_hierarchical_clusters[common_keys_higher_hierarchical[j]][0][new_]=[]
-                        else:
-                            for l in range(-no_of_cluster_differences):
-                                error_different_no_of_clusters=2
-                                extra_cluster_names.append('extra_'+str(int(l)))
-                                lesser_clusters_new.append('extra_'+str(int(l)))
-                                new_='extra_'+str(int(l))
-                                # lesser_hierarchical_clusters[list(lesser_hierarchical_clusters.keys())[j]][0][new_]=[]
-                                # # common_keys_higher_hierarchical
-                                lesser_hierarchical_clusters[common_keys_lesser_hierarchical[j]][0][new_]=[]
+                    extra_cluster_names=[]
+                    lesser_clusters_new=[]
+                    higher_clusters_new=[]
+                    error_different_no_of_clusters=0
+                        
+                    if no_of_cluster_differences==0:
+                        # print(no_of_cluster_differences)
+                            
+                        pass
+                    
+                    else:
+                        if no_of_cluster_differences!=0:
+                            if no_of_cluster_differences>0:
+                                for l in range(no_of_cluster_differences):
+                                    # print(l)
+                                    error_different_no_of_clusters=1
+                                    extra_cluster_names.append('extra_'+str(int(l)))
+                                    higher_clusters_new.append('extra_'+str(int(l)))
+                                    new_='extra_'+str(int(l))
+                                    # higher_hierarchical_clusters[list(higher_hierarchical_clusters.keys())[j]][0][new_]=[]
+                                    higher_hierarchical_clusters[common_keys_higher_hierarchical[j]][0][new_]=[]
+                            else:
+                                for l in range(-no_of_cluster_differences):
+                                    error_different_no_of_clusters=2
+                                    extra_cluster_names.append('extra_'+str(int(l)))
+                                    lesser_clusters_new.append('extra_'+str(int(l)))
+                                    new_='extra_'+str(int(l))
+                                    # lesser_hierarchical_clusters[list(lesser_hierarchical_clusters.keys())[j]][0][new_]=[]
+                                    # # common_keys_higher_hierarchical
+                                    lesser_hierarchical_clusters[common_keys_lesser_hierarchical[j]][0][new_]=[]
                             
                             
-            # ----------------------------  Combinations:  ----------------------------------------
+                # ----------------------------  Combinations:  ----------------------------------------
             
             
             list_1=[]
@@ -393,110 +451,12 @@ def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
                     score/=no_of_cells
                     print(score)
                     _score_.append(score)
-                # _score_2.append(_score_)
             # ================================================
-            _score_2.append(_score_)
-            # --------------------------
-            _lst_ = _score_2
-            __, _max_length_=FindMaxLength(_lst_)
-
-            _scores_dict_={}
-            _df_names_={}
-            for cnt_i in range(_max_length_):
-                _scores_dict_[cnt_i]=[]
-                _df_names_[i]='df'+str(cnt_i)
-
-            _logScores_list_=[]
-            _labels_list_=[]
-            for cnt_i in _score_2:
-                for cnt_j in range(len(cnt_i)):
-                    _scores_dict_[j].append(cnt_i[cnt_j])
-                    _logScores_list_.append(cnt_i[cnt_j])
-                    _labels_list_.append(int(cnt_j+1))
-            _df_ = pd.DataFrame(list(zip(_labels_list_, _logScores_list_)), columns=['Robustness (cluster level)', 'Inter-cluster similarity score'])
-            cluster_wise_df_.append(_df_)
-            _clusterLevels_unique_=list(np.unique(_df_['Robustness (cluster level)'].values.tolist()))
-            
-            # # ================================================
-            # # Plot individual boxplots (comment out):
-            # # ---------------------------------------
-            # fig, axes = plt.subplots(1, 1, figsize=(18, 10))
-            # # fig.suptitle(f'Plot of robustness vs. inter-cluster similarity (method: {method})')
-            # fig.suptitle(clust_comb_indices_str)
-            # sns.boxplot(ax=axes, data=_df_, x='Robustness (cluster level)', y='Inter-cluster similarity score')
-            # # plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method})___PATIENTID-{i}___{clust_comb_indices_str}.jpg", format='jpg')
-            # plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method})___PATIENTID-{i}___{clust_comb_indices_str}.pdf", format='pdf')
-            # plt.show()
-            # # ================================================
-        SCORE.append(_score_2)
-        patient_wise_df.append(cluster_wise_df_)
-    patient_wise_score=SCORE.copy()
-
-    # ================================================
-
-    no_of_cols=3
-    # no_of_rows=1
-    no_of_samples=3
-    fig, axes = plt.subplots(no_of_samples, no_of_cols, figsize=(18, 10))
-    fig.suptitle(f"\nPlot of robustness vs. inter-cluster similarity ({method} progression) --- {no_of_samples} patients --- {no_of_cols} clusters")
-
-    samples_cnt=-1
-    for i in patient_wise_df:
-        samples_cnt+=1
-        if samples_cnt==no_of_samples:
-            break
-        
-        clust_cnt=-1
-        for j in i:
-            clust_cnt+=1
-            if clust_cnt==no_of_cols:
-                break
-            sns.boxplot(ax=axes[samples_cnt, clust_cnt], data=j, x='Robustness (cluster level)', y='Inter-cluster similarity score')
-    plt.savefig(f"Plot of robustness vs. inter-cluster similarity ({method} progression) --- {no_of_samples} patients --- {no_of_cols} clusters.jpg", format='jpg')
-    # plt.savefig(f"Plot of robustness vs. inter-cluster similarity ({method} progression) --- {no_of_samples} patients - {no_of_cols} clusters.pdf", format='pdf')
-    plt.show()    
-        
-    # ================================================
-
-    # ================================================
-
-    no_of_samples=3
-    fig, axes = plt.subplots(1, no_of_samples, figsize=(18, 10))
-    fig.suptitle(f"\nPlot of robustness vs. inter-cluster similarity ({method} progression) --- {no_of_samples} patients")
-
-    samples_cnt=-1
-    for i in patient_wise_df:
-        samples_cnt+=1
-        if samples_cnt==no_of_samples:
-            break
-        
-        sns.boxplot(ax=axes[samples_cnt], data=i[-1], x='Robustness (cluster level)', y='Inter-cluster similarity score')
-    plt.savefig(f"Plot of robustness vs. inter-cluster similarity ({method} progression) --- {no_of_samples} patients.jpg", format='jpg')
-    # plt.savefig(f"Plot of robustness vs. inter-cluster similarity ({method} progression) --- {no_of_samples} patients - {no_of_cols} clusters.pdf", format='pdf')
-    plt.show()    
-        
-    # ================================================
-
-    # # --------
-
-
-
-    # # ---
-    # fig, axes = plt.subplots(1, no_of_clusterings, figsize=(18, 10))
-    # # fig.suptitle(f'Plot of robustness vs. inter-cluster similarity (method: {method})')
-    # fig.suptitle(clust_comb_indices_str)
-    # sns.boxplot(ax=axes[clust_comb_count], data=_df_, x='Robustness (cluster level)', y='Inter-cluster similarity score')
-    # plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method})___PATIENTID-{i}___{clust_comb_indices_str}.pdf", format='pdf')
-    # # plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method})___PATIENTID-{i}___{clust_comb_indices_str}.pdf", format='pdf')
-    # # ---
-
-    # ---------
+            SCORE.append(_score_)
             
     # ================================================
     # ================================================
     # ================================================
-
-    SCORE = [item for sublist in SCORE for item in sublist]
 
     lst = SCORE
     _, max_length=FindMaxLength(lst)
@@ -511,17 +471,47 @@ def plot_of_robustness_vs_intercluster_similarity(adata_pickle_path, method):
     labels_list=[]
     for i in SCORE:
         for j in range(len(i)):
-            scores_dict[j].append(i[j])
-            logScores_list.append(i[j])
+            scores_dict[j].append(np.log10(i[j]))
+            logScores_list.append(np.log10(i[j]))
             labels_list.append(int(j+1))
     df = pd.DataFrame(list(zip(labels_list, logScores_list)), columns=['Robustness (cluster level)', 'Inter-cluster similarity score'])
     clusterLevels_unique=list(np.unique(df['Robustness (cluster level)'].values.tolist()))
+    # logScores_list=[]
+    # labels_list=[]
+    # for i in range(max_length):
+    #     # eval_str='df'+str(i)+'pd.DataFrame(scores_dict[i])'
+    #     # evalStr_logScores='pd.DataFrame(scores_dict[i])'
+    #     # evalStr_dfNames='df'+str(i)
+    #     logScores_list.append(pd.DataFrame(scores_dict[i]))
 
-    # =====
+    # ---
+
+    # fig, axes = plt.subplots(2, 3, figsize=(18, 10))
+    # fig.suptitle(f'Plot of robustness vs. inter-cluster similarity (method: {method})')
+
+    # no_of_cols=3
+    # no_of_rows=int(int(max_length)/no_of_cols)+1
+
+    # _cnt_=-1
+    # for i in range(no_of_rows):
+    #     for j in range(no_of_cols):
+    #         _cnt_+=1
+    #         if _cnt_<max_length:
+    #             sns.boxplot(ax=axes[int(i), int(j)], data=df[df['Robustness (cluster level)']==clusterLevels_unique[_cnt_]], x='Robustness (cluster level)', y='Inter-cluster similarity score')
+
+    # plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method}).svg", format='svg')
+
+    # ---
+
     fig, axes = plt.subplots(1, 1, figsize=(18, 10))
-    fig.suptitle(f'\nPlot of robustness vs. inter-cluster similarity (method: {method})')
+    fig.suptitle(f'Plot of robustness vs. inter-cluster similarity (method: {method})')
+
+    no_of_cols=3
+    no_of_rows=int(int(max_length)/no_of_cols)+1
+
     sns.boxplot(ax=axes, data=df, x='Robustness (cluster level)', y='Inter-cluster similarity score')
-    plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method})__allPatients.jpg", format='jpg')
-    # plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method})__allPatients.pdf", format='pdf')
-    plt.show()
-    # =====
+    plt.savefig(f"Plot of robustness vs. inter-cluster similarity (method: {method}).jpg", format='jpg')
+
+
+
+
