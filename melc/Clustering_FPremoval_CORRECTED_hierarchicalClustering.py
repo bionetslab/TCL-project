@@ -124,8 +124,12 @@ def run(adata_pickle_path, user_selected_cluster_level):
     
     # ------
     pickle_items=list(pickle_.items())
-    first_three_items = pickle_items[0:1]
-    pickle_new=dict(first_three_items)
+    # first_three_items = pickle_items[0:3]
+    # pickle_new=dict(first_three_items)
+    # pickle_=pickle_new
+    # ---
+    all_items = pickle_items[:]
+    pickle_new=dict(all_items)
     pickle_=pickle_new
     # ------
     essential_proteins_allPatients={}
