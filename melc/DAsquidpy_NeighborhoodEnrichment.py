@@ -92,6 +92,36 @@ from sklearn.inspection import permutation_importance
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 
+# ----------------------------------
+
+cellTypeName_shortForm_dict={
+    'Fibroblasts': 'Fib',
+    'Basal keratinocytes': 'Bas',
+    'Melanocytes': 'Mel',
+    'Smooth muscle cells': 'SMCs',
+    'Suprabasal keratinocytes': 'Sup',
+    'T-cells': 'T',
+    'Granulocytes': 'Gran',
+    'B-cells': 'B',
+    'Endothelial cells': 'Endo',
+    'Langerhans cells': 'Lang',
+    'Macrophages': 'Macro'
+    }
+
+cellTypeName_list=list(cellTypeName_shortForm_dict.keys())
+shortForm_list=list(cellTypeName_shortForm_dict.values())
+
+cellTypeName_shortForm_str=""
+for i in cellTypeName_shortForm_dict:
+    cellTypeName_shortForm_str+="'"+ cellTypeName_shortForm_dict[i] + "'" + ": " + i + "\n"
+cellTypeName_shortForm_str=cellTypeName_shortForm_str[:-1]
+
+# ----------------------------------
+
+
+def extract_unique_tuples_dict(input_list):
+        return [tuple(x) for x in np.unique([sorted(tup) for tup in input_list], axis=0)]
+
 
 def dasquidpy_neighborhood_enrichment(adata_pickle_path, dependent_variable_name):
     with open(adata_pickle_path, 'rb') as f:
@@ -125,130 +155,144 @@ def dasquidpy_neighborhood_enrichment(adata_pickle_path, dependent_variable_name
     cell_types_1_count={}
     cell_types_0_count={}
 
+    okay_list=[]
+    error_list=[]
+    for i in pickle_:
+        adata=pickle_[i]
+        try:
+            squidpy.gr.spatial_neighbors(adata)
+            nhood_enrichment=squidpy.gr.nhood_enrichment(adata, cluster_key='celltype', copy=True, backend="multiprocessing", show_progress_bar=False)
+            okay_list.append(i)
+        except:
+            error_list.append(i)    
+
+
     cnt=-1
     for i in pickle_:
-        cnt+=1
-        one_or_zero_flag=-1
-        adata=pickle_[i]
-        # ---
-        patient_ids.append(i)
-        rec_lab=np.unique(pickle_[i].obsm[dependent_variable_name])[0]
-        recurrence_labels.append(rec_lab)
-        # ---
-        clusters=list(np.unique(adata.obs['celltype']))
-        clusters_sorted=sorted(clusters)
-        # ---
-        cluster_names_matrix=[]
-        for j in clusters_sorted:
-            list_=[]
-            for k in clusters_sorted:
-                index=str(j)+'(**append_name**)'+str(k)
-                list_.append(index)
-            cluster_names_matrix.append(list_)
-        upper_cluster_matrix = np.triu(cluster_names_matrix, 1)
-        # ---
-        cluster_pairs_list=[]
-        for j in upper_cluster_matrix:
-            for k in j:
-                # print(j, k)
-                if k!='' and k!=None:
-                    # cluster_pairs_list.append(k)
-                    cluster_pairs_list.append((k.split("(**append_name**)",1)[0], k.split("(**append_name**)",1)[1]))
-        
-        # ---------------------*************************---------------------
-        squidpy.gr.spatial_neighbors(adata)
-        nhood_enrichment=squidpy.gr.nhood_enrichment(adata, cluster_key='celltype', copy=True, backend="multiprocessing", show_progress_bar=False)
-        # squidpy.gr.nhood_enrichment(adata, cluster_key='celltype', backend="multiprocessing", show_progress_bar=False)
-        # sq.pl.nhood_enrichment(adata, cluster_key="celltype")
-        nhood_enrichment_zscore=nhood_enrichment[0]
-        # nhood_enrichment_zscores.append(nhood_enrichment_zscore)
-        # ---
-        nhood_enrichment_count=nhood_enrichment[1]
-        # nhood_enrichment_counts.append(nhood_enrichment_count)
-        # ---
-        # if adata_raw.obsm[dependent_variable_name]=="POSITIVE":
-        #     leiden_nhood_enrichment_counts_positive.append(leiden_nhood_enrichment_count)
-        # elif adata_raw.obsm[dependent_variable_name]=="NEGATIVE":
-        #     leiden_nhood_enrichment_counts_negative.append(leiden_nhood_enrichment_count)
-        # ---
-        # ---------------------*************************---------------------
-        
-        upper_zscore_matrix = np.triu(np.array(nhood_enrichment_zscore), 1)
-        zscore_list=[]
-        for j in upper_zscore_matrix:
-            for k in j:
-                # print(j, k)
-                if k!=0 and k!=None:
-                    # cluster_pairs_list.append(k)
-                    zscore_list.append(k)
-        # ---
-        upper_count_matrix = np.triu(np.array(nhood_enrichment_count), 1)
-        count_list=[]
-        for j in upper_count_matrix:
-            for k in j:
-                # print(j, k)
-                if k!=0 and k!=None:
-                    # cluster_pairs_list.append(k)
-                    count_list.append(k)
-        # ---
-        dict_nhoodEnrichment_zscore=dict(zip(cluster_pairs_list, zscore_list))
-        dict_nhoodEnrichment_count=dict(zip(cluster_pairs_list, count_list))
-        # ---
-        Dict_NhoodEnrichment_Zscore.append(dict_nhoodEnrichment_zscore)
-        Dict_NhoodEnrichment_Count.append(dict_nhoodEnrichment_count)
-        # ---
-        
-        
-        # ---------------------*************************---------------------
-        # ---------------------*************************---------------------
-        # ---------------------*************************---------------------
+        if not(i in error_list):
+            cnt+=1
+            one_or_zero_flag=-1
+            adata=pickle_[i]
+            # ---
+            patient_ids.append(i)
+            rec_lab=np.unique(pickle_[i].obsm[dependent_variable_name])[0]
+            recurrence_labels.append(rec_lab)
+            # ---
+            clusters=list(np.unique(adata.obs['celltype']))
+            clusters_sorted=sorted(clusters)
+            # ---
+            cluster_names_matrix=[]
+            for j in clusters_sorted:
+                list_=[]
+                for k in clusters_sorted:
+                    index=str(j)+'(**append_name**)'+str(k)
+                    list_.append(index)
+                cluster_names_matrix.append(list_)
+            upper_cluster_matrix = np.triu(cluster_names_matrix, 1)
+            # ---
+            cluster_pairs_list=[]
+            for j in upper_cluster_matrix:
+                for k in j:
+                    # print(j, k)
+                    if k!='' and k!=None:
+                        # cluster_pairs_list.append(k)
+                        cluster_pairs_list.append((k.split("(**append_name**)",1)[0], k.split("(**append_name**)",1)[1]))
+            
+            # ---------------------*************************---------------------
+            print(i)
+            squidpy.gr.spatial_neighbors(adata)
+            nhood_enrichment=squidpy.gr.nhood_enrichment(adata, cluster_key='celltype', copy=True, backend="multiprocessing", show_progress_bar=False)
+            # squidpy.gr.nhood_enrichment(adata, cluster_key='celltype', backend="multiprocessing", show_progress_bar=False)
+            # sq.pl.nhood_enrichment(adata, cluster_key="celltype")
+            nhood_enrichment_zscore=nhood_enrichment[0]
+            # nhood_enrichment_zscores.append(nhood_enrichment_zscore)
+            # ---
+            nhood_enrichment_count=nhood_enrichment[1]
+            # nhood_enrichment_counts.append(nhood_enrichment_count)
+            # ---
+            # if adata_raw.obsm[dependent_variable_name]=="POSITIVE":
+            #     leiden_nhood_enrichment_counts_positive.append(leiden_nhood_enrichment_count)
+            # elif adata_raw.obsm[dependent_variable_name]=="NEGATIVE":
+            #     leiden_nhood_enrichment_counts_negative.append(leiden_nhood_enrichment_count)
+            # ---
+            # ---------------------*************************---------------------
+            
+            upper_zscore_matrix = np.triu(np.array(nhood_enrichment_zscore), 1)
+            zscore_list=[]
+            for j in upper_zscore_matrix:
+                for k in j:
+                    # print(j, k)
+                    if k!=0 and k!=None:
+                        # cluster_pairs_list.append(k)
+                        zscore_list.append(k)
+            # ---
+            upper_count_matrix = np.triu(np.array(nhood_enrichment_count), 1)
+            count_list=[]
+            for j in upper_count_matrix:
+                for k in j:
+                    # print(j, k)
+                    if k!=0 and k!=None:
+                        # cluster_pairs_list.append(k)
+                        count_list.append(k)
+            # ---
+            dict_nhoodEnrichment_zscore=dict(zip(cluster_pairs_list, zscore_list))
+            dict_nhoodEnrichment_count=dict(zip(cluster_pairs_list, count_list))
+            # ---
+            Dict_NhoodEnrichment_Zscore.append(dict_nhoodEnrichment_zscore)
+            Dict_NhoodEnrichment_Count.append(dict_nhoodEnrichment_count)
+            # ---
+            
+            
+            # ---------------------*************************---------------------
+            # ---------------------*************************---------------------
+            # ---------------------*************************---------------------
 
 
-        if rec_lab=='POSITIVE' or rec_lab=='positive' or rec_lab=='1' or rec_lab==1:
-            ct1=list(adata.obs['celltype'])
-            ct1_unique=list(np.unique(ct1))
-            one_or_zero_flag=1
-        elif rec_lab=='NEGATIVE' or rec_lab=='negative' or rec_lab=='0' or rec_lab==0:
-            ct0=list(adata.obs['celltype'])
-            ct0_unique=list(np.unique(ct0))
-            one_or_zero_flag=0
-        
-        # ---
-        if one_or_zero_flag==0:
-            Dict_NhoodEnrichment_Zscore_0.append(dict_nhoodEnrichment_zscore)
-            Dict_NhoodEnrichment_Count_0.append(dict_nhoodEnrichment_count)
-        elif one_or_zero_flag==1:
-            Dict_NhoodEnrichment_Zscore_1.append(dict_nhoodEnrichment_zscore)
-            Dict_NhoodEnrichment_Count_1.append(dict_nhoodEnrichment_count)
-        # ---
-        for j1, j2 in cluster_pairs_list:
-            Cluster_Pairs_List.append((j1, j2))
+            if rec_lab=='POSITIVE' or rec_lab=='positive' or rec_lab=='1' or rec_lab==1:
+                ct1=list(adata.obs['celltype'])
+                ct1_unique=list(np.unique(ct1))
+                one_or_zero_flag=1
+            elif rec_lab=='NEGATIVE' or rec_lab=='negative' or rec_lab=='0' or rec_lab==0:
+                ct0=list(adata.obs['celltype'])
+                ct0_unique=list(np.unique(ct0))
+                one_or_zero_flag=0
+            
+            # ---
             if one_or_zero_flag==0:
-                Cluster_Pairs_List_0.append((j1, j2))
+                Dict_NhoodEnrichment_Zscore_0.append(dict_nhoodEnrichment_zscore)
+                Dict_NhoodEnrichment_Count_0.append(dict_nhoodEnrichment_count)
             elif one_or_zero_flag==1:
-                Cluster_Pairs_List_1.append((j1, j2))
-        # ---
-        
-        if one_or_zero_flag==0:
-            for p in ct0_unique:
-                if p in cell_types_0:
-                    cell_types_0_count[p]+=ct0.count(p)
-                else:
-                    cell_types_0_count[p]=ct0.count(p)
-            for k in ct0_unique:
-                cell_types_0.append(k)
-            cell_types_0=list(np.unique(cell_types_0))
-        elif one_or_zero_flag==1:
-            for p in ct1_unique:
-                if p in cell_types_1:
-                    cell_types_1_count[p]+=ct1.count(p)
-                else:
-                    cell_types_1_count[p]=ct1.count(p)
-            for k in ct1_unique:
-                cell_types_1.append(k)
-            cell_types_1=list(np.unique(cell_types_1))
-        
-        # ---
+                Dict_NhoodEnrichment_Zscore_1.append(dict_nhoodEnrichment_zscore)
+                Dict_NhoodEnrichment_Count_1.append(dict_nhoodEnrichment_count)
+            # ---
+            for j1, j2 in cluster_pairs_list:
+                Cluster_Pairs_List.append((j1, j2))
+                if one_or_zero_flag==0:
+                    Cluster_Pairs_List_0.append((j1, j2))
+                elif one_or_zero_flag==1:
+                    Cluster_Pairs_List_1.append((j1, j2))
+            # ---
+            
+            if one_or_zero_flag==0:
+                for p in ct0_unique:
+                    if p in cell_types_0:
+                        cell_types_0_count[p]+=ct0.count(p)
+                    else:
+                        cell_types_0_count[p]=ct0.count(p)
+                for k in ct0_unique:
+                    cell_types_0.append(k)
+                cell_types_0=list(np.unique(cell_types_0))
+            elif one_or_zero_flag==1:
+                for p in ct1_unique:
+                    if p in cell_types_1:
+                        cell_types_1_count[p]+=ct1.count(p)
+                    else:
+                        cell_types_1_count[p]=ct1.count(p)
+                for k in ct1_unique:
+                    cell_types_1.append(k)
+                cell_types_1=list(np.unique(cell_types_1))
+            
+            # ---
 
 
     # ========================================================================================
@@ -340,9 +384,6 @@ def dasquidpy_neighborhood_enrichment(adata_pickle_path, dependent_variable_name
 
     # # ========================================================================================
 
-    def extract_unique_tuples_dict(input_list):
-        return [tuple(x) for x in np.unique([sorted(tup) for tup in input_list], axis=0)]
-
     input_list = Cluster_Pairs_List.copy()
     Cluster_Pairs_List = extract_unique_tuples_dict(input_list)
     # print(f"The original list : {input_list}")
@@ -433,22 +474,59 @@ def dasquidpy_neighborhood_enrichment(adata_pickle_path, dependent_variable_name
 
 
     # ========================================================================================
-    nhood_enrichment_zscore_values=[Dict_NhoodEnrichment_Zscore_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+
+    # nhood_enrichment_zscore_values=[Dict_NhoodEnrichment_Zscore_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    nhood_enrichment_zscore_values=[]
+    for x in Cluster_Pairs_List_0_and_1:
+        try:
+            nhood_enrichment_zscore_values.append(Dict_NhoodEnrichment_Zscore_aggregated[x])
+        except:
+            pass
     dict_nhood_enrichment_zscore=dict(zip(Cluster_Pairs_List_0_and_1, nhood_enrichment_zscore_values))
     # ---
-    nhood_enrichment_count_values=[Dict_NhoodEnrichment_Count_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    # nhood_enrichment_count_values=[Dict_NhoodEnrichment_Count_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    nhood_enrichment_count_values=[]
+    for x in Cluster_Pairs_List_0_and_1:
+        try:
+            nhood_enrichment_zscore_values.append(Dict_NhoodEnrichment_Count_aggregated[x])
+        except:
+            pass
     dict_nhood_enrichment_count=dict(zip(Cluster_Pairs_List_0_and_1, nhood_enrichment_count_values))
     # ---------------
-    nhood_enrichment_zscore_0_values=[Dict_NhoodEnrichment_Zscore_0_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    # nhood_enrichment_zscore_0_values=[Dict_NhoodEnrichment_Zscore_0_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    nhood_enrichment_zscore_0_values=[]
+    for x in Cluster_Pairs_List_0_and_1:
+        try:
+            nhood_enrichment_zscore_0_values.append(Dict_NhoodEnrichment_Zscore_0_aggregated[x])
+        except:
+            pass
     dict_nhood_enrichment_zscore_0=dict(zip(Cluster_Pairs_List_0_and_1, nhood_enrichment_zscore_0_values))
     # ---
-    nhood_enrichment_count_0_values=[Dict_NhoodEnrichment_Count_0_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    # nhood_enrichment_count_0_values=[Dict_NhoodEnrichment_Count_0_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    nhood_enrichment_count_0_values=[]
+    for x in Cluster_Pairs_List_0_and_1:
+        try:
+            nhood_enrichment_count_0_values.append(Dict_NhoodEnrichment_Count_0_aggregated[x])
+        except:
+            pass
     dict_nhood_enrichment_count_0=dict(zip(Cluster_Pairs_List_0_and_1, nhood_enrichment_count_0_values))
     # ---------------
-    nhood_enrichment_zscore_1_values=[Dict_NhoodEnrichment_Zscore_1_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    # nhood_enrichment_zscore_1_values=[Dict_NhoodEnrichment_Zscore_1_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    nhood_enrichment_zscore_1_values=[]
+    for x in Cluster_Pairs_List_0_and_1:
+        try:
+            nhood_enrichment_zscore_1_values.append(Dict_NhoodEnrichment_Zscore_1_aggregated[x])
+        except:
+            pass
     dict_nhood_enrichment_zscore_1=dict(zip(Cluster_Pairs_List_0_and_1, nhood_enrichment_zscore_1_values))
     # ---
-    nhood_enrichment_count_1_values=[Dict_NhoodEnrichment_Count_1_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    # nhood_enrichment_count_1_values=[Dict_NhoodEnrichment_Count_1_aggregated[x] for x in Cluster_Pairs_List_0_and_1]
+    nhood_enrichment_count_1_values=[]
+    for x in Cluster_Pairs_List_0_and_1:
+        try:
+            nhood_enrichment_count_1_values.append(Dict_NhoodEnrichment_Count_1_aggregated[x])
+        except:
+            pass
     dict_nhood_enrichment_count_1=dict(zip(Cluster_Pairs_List_0_and_1, nhood_enrichment_count_1_values))
     # ========================================================================================
     pvals_zscore_nhoodEnrichment_values=[]
@@ -458,8 +536,11 @@ def dasquidpy_neighborhood_enrichment(adata_pickle_path, dependent_variable_name
         U1, p = mannwhitneyu(dict_nhood_enrichment_zscore_0[i], dict_nhood_enrichment_zscore_1[i], method="exact")
         pvals_zscore_nhoodEnrichment_values.append(p)
         # ---
-        U1, p = mannwhitneyu(dict_nhood_enrichment_count_0[i], dict_nhood_enrichment_count_1[i], method="exact")
-        pvals_count_nhoodEnrichment_values.append(p)
+        try:
+            U1, p = mannwhitneyu(dict_nhood_enrichment_count_0[i], dict_nhood_enrichment_count_1[i], method="exact")
+            pvals_count_nhoodEnrichment_values.append(p)
+        except:
+            pass
     # ---
     pvals_zscore_nhoodEnrichment=dict(zip(Cluster_Pairs_List_0_and_1, pvals_zscore_nhoodEnrichment_values))
     pvals_count_nhoodEnrichment=dict(zip(Cluster_Pairs_List_0_and_1, pvals_count_nhoodEnrichment_values))
@@ -474,14 +555,107 @@ def dasquidpy_neighborhood_enrichment(adata_pickle_path, dependent_variable_name
         print('No significant celltype pair found in terms of neighborhodd enrichment!')
     else:
         # ---
-        fig, axes = plt.subplots(figsize=(10, 4))
-        fig.suptitle(f'Differential Analysis (Neighborhood Enrichment) – celltype pairs with significant neighborhood enrichment differences (p-value<0.05)')
+        from IPython.display import set_matplotlib_formats
+        # set_matplotlib_formats('retina', quality=100)
+        import seaborn as sns
+        # sns.set_theme()
+        sns.set_theme(style="whitegrid")
+        # plt.rcdefaults()
+        # ---
+        # Set default figure size.
+        plt.rcParams['figure.figsize'] = (12, 5)
+        fig, axes = plt.subplots(figsize=(12, 5))
+        # fig.suptitle(f'Differential Analysis (Neighborhood Enrichment) – celltype pairs with significant neighborhood enrichment differences (p-value<0.05)')
         feature = list(significant_pvals_zscore_nhoodEnrichment_sorted.keys())
+        # -----
+        _feature_=[]
+        for i in feature:
+            _feature_.append((cellTypeName_shortForm_dict[i[0]], cellTypeName_shortForm_dict[i[1]]))
+        # -----
         score = list(significant_pvals_zscore_nhoodEnrichment_sorted.values())
         x_pos = np.arange(len(feature))
         # ---
-        plt.bar(x_pos, score,align='center')
-        plt.xticks(x_pos, feature, rotation=90) 
-        plt.ylabel('p-value (MWU test)')
-        plt.savefig(f'DA_neighborhoodEnrichment_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf')
+        # Axis formatting.
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+        axes.spines['left'].set_visible(False)
+        axes.spines['bottom'].set_color('#DDDDDD')
+        axes.tick_params(bottom=False, left=False)
+        axes.set_axisbelow(True)
+        axes.yaxis.grid(True, color='#EEEEEE')
+        axes.xaxis.grid(False)
+        # ---
+        axes.tick_params(labelsize = 14)
+        # Add a footnote below and to the right side of the chart
+        # axes.annotate('Footnote added below the chart with a smaller font',
+        #             xy = (1.0, -0.2),
+        #             xycoords='axes fraction',
+        #             ha='right',
+        #             va="center",
+        #             fontsize=10)
+        # plt.show()
+        # ---
+        # textstr = '\n'.join((
+        # r'$\mu=%.2f$' % (mu, ),
+        # r'$\mathrm{median}=%.2f$' % (median, ),
+        # r'$\sigma=%.2f$' % (sigma, )))
+        # ---
+        
+        # textstr = '\n'.join((
+        # r'$\mu=%.2f$',
+        # r'$\mathrm{median}=%.2f$',
+        # r'$\sigma=%.2f$'))
+        
+        _string_ = str(cellTypeName_shortForm_dict)
+        
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        
+        # # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        # #     verticalalignment='top', bbox=props)
+        
+        # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        #     verticalalignment='top', bbox=props)
+        
+        my_text = ''
+        my_text += cellTypeName_shortForm_str
+        props = dict(boxstyle='round', facecolor='grey', alpha=0.15)
+        axes.text(1.03, 0.98, my_text, transform=axes.transAxes, fontsize=12, verticalalignment='top', bbox=props)
+        
+        # ---
+        bars=plt.bar(x_pos, score,align='center')
+        # ---
+        # Grab the color of the bars so we can make the
+        # text the same color.
+        bar_color = bars[0].get_facecolor()
+
+        # Add text annotations to the top of the bars.
+        # Note, you'll have to adjust this slightly (the 0.3)
+        # with different data.
+        for bar in bars:
+            axes.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0,
+                round(score[int(bar.get_x() + bar.get_width() / 2)],3),
+                # round(bar.get_height(), 1),
+                horizontalalignment='center',
+                color=bar_color,
+                weight='bold'
+            )
+        # --- Ticks: ---
+        # plt.xticks(x_pos, feature, rotation=90)
+        plt.xticks(x_pos, _feature_, rotation=90)
+        # --------------
+        # --- Labels: ---
+        # plt.ylabel('p-value (MWU test)')
+        # ---------------
+        # ---
+        # Add labels and a title. Note the use of `labelpad` and `pad` to add some
+        # extra space between the text and the tick labels.
+        axes.set_xlabel('Celltype pairs', labelpad=15, color='#333333')
+        axes.set_ylabel('p-value (MWU)', labelpad=15, color='#333333')
+        axes.set_title('Neighborhood enrichment\n$(celltype\;pairs\;with\;p < 0.05)$', pad=15, color='#333333', weight='bold')
+        # ---
+        fig.tight_layout()
+        # fig.constrained_layout()
+        plt.savefig(f'DA_neighborhoodEnrichment_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf', bbox_inches='tight')
         plt.show()

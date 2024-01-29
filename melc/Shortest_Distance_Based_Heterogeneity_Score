@@ -1,0 +1,302 @@
+
+
+
+import pickle
+import numpy as np
+import pandas as pd
+from PIL import Image
+import glob
+from skimage.morphology import convex_hull_image
+from skimage import data, img_as_float
+from skimage.util import invert
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
+from multiprocessing import Pool
+import time
+import math
+from collections import Counter
+import scanpy as sc
+import networkx as nx
+import itertools
+import random
+from scipy.stats import mannwhitneyu
+import os
+import warnings
+import gseapy as gp
+import mygene
+import seaborn as sns
+from gseapy import barplot, dotplot
+import decoupler as dc
+from numpy.random import default_rng
+from copy import deepcopy
+import squidpy as sq
+import schist as scs
+from pingouin import mwu
+import graph_tools as gt
+import squidpy
+from scipy.stats import mannwhitneyu
+# -------------------------------------------------------------
+import pickle
+import numpy as np
+import pandas as pd
+from PIL import Image
+import glob
+from skimage.morphology import convex_hull_image
+from skimage import data, img_as_float
+from skimage.util import invert
+from scipy.spatial import ConvexHull, convex_hull_plot_2d
+from multiprocessing import Pool
+import time
+import math
+from collections import Counter
+import scanpy as sc
+import networkx as nx
+import pandas as pd
+import numpy as np
+import itertools
+import random
+from scipy.stats import mannwhitneyu
+import os
+import warnings
+import pickle
+import pandas as pd
+import gseapy as gp
+import mygene
+import seaborn as sns
+from gseapy import barplot, dotplot
+import random
+import numpy as np
+import decoupler as dc
+from numpy.random import default_rng
+from copy import deepcopy
+import scanpy as sc
+import squidpy as sq
+import time
+# from neighborhood_enrichment import neighborhood_enrichment
+from statsmodels.stats.multitest import fdrcorrection
+from itertools import chain
+from sklearn.decomposition import PCA
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.svm import SVC
+from sklearn.inspection import permutation_importance
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.inspection import permutation_importance
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
+from matplotlib_venn import venn2
+from sklearn.model_selection import train_test_split
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+            
+            
+# def run(adata_pickle_path, user_selected_cluster_level):
+def run(adata_pickle_path, negative_class_name, positive_class_name):
+
+    # ---
+    with open(adata_pickle_path, 'rb') as f:
+        pickle_=pickle.load(f)
+    # ---
+    CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE={}
+    CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_1={}
+    CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_0={}
+    # ---
+    for i in pickle_:
+        try:
+            print(i)
+            _label_=str(pickle_[i].obsm['Group'][0])
+            # ---
+            # df_coords=pd.DataFrame(np.array(pickle_[i].uns['cell_coordinates']))
+            df_coords=pd.DataFrame(np.array(pickle_[i].obsm['spatial']))
+            df_coords=df_coords.rename(columns={0:'x', 1: 'y'})
+            df_coords['label']=_label_
+            df_coords['celltype']=list(pickle_[i].obs['celltype'])
+            # ---
+            squidpy.gr.spatial_neighbors(pickle_[i], coord_type='generic', delaunay=True)
+            adata_cell_index=list(pickle_[i].to_df().index)
+            spatial_conn_indices=list(np.unique(pickle_[i].obsp["spatial_connectivities"].__dict__['indices']))
+            spatConnIndex_cellIndex_dict=dict(zip(spatial_conn_indices, adata_cell_index))
+            # ---
+            adjMatrix=pd.DataFrame(pickle_[i].obsp["spatial_connectivities"].toarray())
+            adjMatrix=adjMatrix.rename(columns=spatConnIndex_cellIndex_dict)
+            adjMatrix.index=adata_cell_index
+            # ---
+            cellNumber_cellName_lookupDict=pickle_[i].obs['celltype'].to_dict()
+            # ---
+            
+            array_=np.array(adjMatrix>0) & np.array(adjMatrix<=2)
+            
+            idx, idy = np.where(array_ == True)
+            
+            id_={}
+            count=-1
+            for j in range(len(idx)):
+                count+=1
+                try:
+                    id_[spatConnIndex_cellIndex_dict[idx[count]]].append(spatConnIndex_cellIndex_dict[idy[count]])
+                except:
+                    id_[spatConnIndex_cellIndex_dict[idx[count]]]=[]
+                    id_[spatConnIndex_cellIndex_dict[idx[count]]].append(spatConnIndex_cellIndex_dict[idy[count]])
+            id_celltype_mapped={}
+            local_heterogeneity_score_list=[]
+            celltype_wise_local_heterogeneity_score={}
+            for j in id_:
+                rw_celltype_mapped=list(map(cellNumber_cellName_lookupDict.get, id_[j], id_[j]))
+                id_celltype_mapped[j]=rw_celltype_mapped
+                total_cells_in_vicinity=len(rw_celltype_mapped)
+                no_of_celltypes_in_vicinity=list(np.unique(rw_celltype_mapped))
+                no_of_celltypes_in_vicinity_including_self=no_of_celltypes_in_vicinity.copy()
+                no_of_celltypes_in_vicinity_including_self.append(list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0])
+                no_of_celltypes_in_vicinity_including_self=list(np.unique(no_of_celltypes_in_vicinity_including_self))
+                total_cells_in_vicinity_including_self=total_cells_in_vicinity+1
+                local_heterogeneity_score=len(no_of_celltypes_in_vicinity_including_self)/total_cells_in_vicinity_including_self
+                local_heterogeneity_score_list.append(local_heterogeneity_score)
+                # ---
+                try:
+                    celltype_wise_local_heterogeneity_score[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                except:
+                    celltype_wise_local_heterogeneity_score[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]]=[]
+                    celltype_wise_local_heterogeneity_score[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                # ---
+                try:
+                    CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                except:
+                    CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]]=[]
+                    CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                # ---
+                if _label_==positive_class_name:
+                    try:
+                        CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_1[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                    except:
+                        CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_1[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]]=[]
+                        CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_1[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                elif _label_==negative_class_name:
+                    try:
+                        CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_0[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+                    except:
+                        CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_0[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]]=[]
+                        CELLTYPE_WISE_LOCAL_HETEROGENEITY_SCORE_0[list(map(cellNumber_cellName_lookupDict.get, [j], [j]))[0]].append(local_heterogeneity_score)
+            # ---
+            df_coords['local_heterogeneity_score']=local_heterogeneity_score_list
+            # =====
+            from IPython.display import set_matplotlib_formats
+            import seaborn as sns
+            sns.set_theme(style="whitegrid", palette="muted")
+            # ---
+            sns.set_style("whitegrid", {'axes.grid' : False})
+            # fig, (axes1, axes2) = plt.subplots(1,2)
+            layout = [["A"], ["B"]]
+            fig, axes = plt.subplot_mosaic(layout, figsize=(10,10))
+            plt.suptitle(f"\nPatient#{i} (condition: {_label_})", x=0.40, y=1.00)
+            axes["A"].imshow(pickle_[i].uns['spatial']['images']['Propidium iodide'], cmap='gray')
+            # ---
+            xlabel='x'
+            ylabel='y'
+            ax = sns.scatterplot(ax=axes["A"], data=df_coords, x="y", y="x", hue="local_heterogeneity_score", palette='RdBu', s=5)
+            ax.set(xlabel=xlabel, ylabel=ylabel, title=f'Local heterogeneity score')
+            # ax.invert_yaxis()
+            axes["A"].tick_params(left=False, bottom=False)
+            # ---
+            # norm = plt.Normalize(df_coords['local_heterogeneity_score'].min(), df_coords['local_heterogeneity_score'].max())
+            norm = plt.Normalize(0, 1)
+            sm = plt.cm.ScalarMappable(cmap="RdBu", norm=norm)
+            sm.set_array([])
+            # Remove the legend and add a colorbar
+            ax.get_legend().remove()
+            # ax.figure.colorbar(sm, location = 'right')
+            cax_=fig.add_axes([0.1, 0.6, 0.03, 0.3])
+            ax.figure.colorbar(sm, cax=cax_)
+            # # ---
+            # # add color bar below chart
+            # divider = make_axes_locatable(axes["A"])
+            # cax = divider.new_vertical(size='5%', pad=0.6, pack_start = True)
+            # fig.add_axes(cax)
+            # fig.colorbar(ax, cax = cax, orientation = 'horizontal')
+            # # ---
+            # plt.xticks([])
+            # plt.yticks([])
+            # fig.tight_layout()
+            # plt.savefig(f'{_label_}\Patient#{i} (condition: {_label_}).pdf', format='pdf', bbox_inches='tight')
+            # plt.show()
+            # plt.close()
+            # =====
+            # ========== X ==========
+            # =====
+            from IPython.display import set_matplotlib_formats
+            import seaborn as sns
+            sns.set_theme(style="whitegrid", palette="muted")
+            # ---
+            sns.set_style("whitegrid", {'axes.grid' : False})
+            # fig, axes = plt.subplots()
+            axes["B"].imshow(pickle_[i].uns['spatial']['images']['Propidium iodide'], cmap='gray')
+            # ---
+            xlabel='x'
+            ylabel='y'
+            ax = sns.scatterplot(ax=axes["B"], data=df_coords, x="y", y="x", hue="celltype", palette='Set3', s=5)
+            ax.set(xlabel=xlabel, ylabel=ylabel, title=f'Cell types')
+            # ax.invert_yaxis()
+            axes["B"].tick_params(left=False, bottom=False)
+            # ---
+            sns.move_legend(axes["B"], "upper left", bbox_to_anchor=(-1.0, .8), title='Cell types')
+            # ---
+            # # ---
+            # # norm = plt.Normalize(df_coords['local_heterogeneity_score'].min(), df_coords['local_heterogeneity_score'].max())
+            # norm = plt.Normalize(0, 1)
+            # sm = plt.cm.ScalarMappable(cmap="RdBu", norm=norm)
+            # sm.set_array([])
+            # # Remove the legend and add a colorbar
+            # ax.get_legend().remove()
+            # ax.figure.colorbar(sm)
+            # # ---
+            plt.xticks([])
+            plt.yticks([])
+            fig.tight_layout()
+            plt.savefig(f'{_label_}\Patient#{i} (condition: {_label_}).pdf', format='pdf', bbox_inches='tight')
+            plt.show()
+            plt.close()
+            # =====
+            # ========== X ==========
+            # ========== X ==========
+            # ========== X ==========
+            # ========== X ==========
+            # ========== X ==========
+            # ========== X ==========
+
+            # ========== X ==========
+            # # =====
+            # from IPython.display import set_matplotlib_formats
+            # import seaborn as sns
+            # sns.set_theme(style="whitegrid", palette="muted")
+            # # ---
+            # sns.set_style("whitegrid", {'axes.grid' : False})
+            # fig, (axes1, axes2) = plt.subplots(1,2)
+            # axes1.imshow(pickle_[i].uns['spatial']['images']['Propidium iodide'], cmap='gray')
+            # axes1.tick_params(left=False, bottom=False)
+            # # ---
+            # xlabel='x'
+            # ylabel='y'
+            # # ax = sns.scatterplot(ax=axes2, data=df_coords, x="y", y="x", hue="local_heterogeneity_score", palette='RdBu', s=5)
+            # ax = sns.scatterplot(ax=axes2, data=df_coords, x="y", y="x", s=5)
+            # ax.set(xlabel=xlabel, ylabel=ylabel, title=f'Patient#{i} (condition: {_label_})')
+            # axes2.invert_yaxis()
+            # axes2.tick_params(left=False, bottom=False)
+            # # # ---
+            # # # norm = plt.Normalize(df_coords['local_heterogeneity_score'].min(), df_coords['local_heterogeneity_score'].max())
+            # # norm = plt.Normalize(0, 1)
+            # # sm = plt.cm.ScalarMappable(cmap="RdBu", norm=norm)
+            # # sm.set_array([])
+            # # # Remove the legend and add a colorbar
+            # # ax.get_legend().remove()
+            # # ax.figure.colorbar(sm)
+            # # # ---
+            # plt.xticks([])
+            # plt.yticks([])
+            # fig.tight_layout()
+            # plt.savefig(f'{_label_}\Patient#{i} (condition: {_label_}).pdf', format='pdf', bbox_inches='tight')
+            # plt.show()
+            # plt.close()
+            # # =====
+        except:
+            continue
+        pickle_[i].obsm['local_heterogeneity_score']=np.array(local_heterogeneity_score_list)

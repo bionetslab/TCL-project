@@ -131,6 +131,32 @@ from sklearn.inspection import permutation_importance
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 
+# ----------------------------------
+
+cellTypeName_shortForm_dict={
+    'Fibroblasts': 'Fib',
+    'Basal keratinocytes': 'Bas',
+    'Melanocytes': 'Mel',
+    'Smooth muscle cells': 'SMCs',
+    'Suprabasal keratinocytes': 'Sup',
+    'T-cells': 'T',
+    'Granulocytes': 'Gran',
+    'B-cells': 'B',
+    'Endothelial cells': 'Endo',
+    'Langerhans cells': 'Lang',
+    'Macrophages': 'Macro'
+ }
+
+cellTypeName_list=list(cellTypeName_shortForm_dict.keys())
+shortForm_list=list(cellTypeName_shortForm_dict.values())
+
+cellTypeName_shortForm_str=""
+for i in cellTypeName_shortForm_dict:
+    cellTypeName_shortForm_str+="'"+ cellTypeName_shortForm_dict[i] + "'" + ": " + i + "\n"
+cellTypeName_shortForm_str=cellTypeName_shortForm_str[:-1]
+
+# ----------------------------------
+
 def extract_unique_tuples_dict(input_list):
     return [tuple(x) for x in np.unique([sorted(tup) for tup in input_list], axis=0)]
 
@@ -179,162 +205,174 @@ def dasquidpy_cluster_cooccurrence_across_spatial_dimensions(adata_pickle_path, 
     cell_types_1_count={}
     cell_types_0_count={}
 
+    okay_list=[]
+    error_list=[]
+    for i in pickle_:
+        adata=pickle_[i]
+        try:
+            squidpy.gr.spatial_neighbors(adata)
+            nhood_enrichment=squidpy.gr.nhood_enrichment(adata, cluster_key='celltype', copy=True, backend="multiprocessing", show_progress_bar=False)
+            okay_list.append(i)
+        except:
+            error_list.append(i) 
+
     cnt=-1
     for i in pickle_:
-        cnt+=1
-        one_or_zero_flag=-1
-        adata=pickle_[i]
-        # ---
-        patient_ids.append(i)
-        rec_lab=np.unique(pickle_[i].obsm[dependent_variable_name])[0]
-        recurrence_labels.append(rec_lab)
-        # ---
-        clusters=list(np.unique(adata.obs['celltype']))
-        clusters_sorted=sorted(clusters)
-        no_of_clusts=len(clusters_sorted)
-        # ---
-        cluster_names_matrix=[]
-        for j in clusters_sorted:
-            list_=[]
-            for k in clusters_sorted:
-                index=str(j)+'(**append_name**)'+str(k)
-                list_.append(index)
-            cluster_names_matrix.append(list_)
-        upper_cluster_matrix = np.triu(cluster_names_matrix, 1)
-        # ---
-        cluster_pairs_list=[]
-        for j in upper_cluster_matrix:
-            for k in j:
-                # print(j, k)
-                if k!='' and k!=None:
-                    # cluster_pairs_list.append(k)
-                    cluster_pairs_list.append((k.split("(**append_name**)",1)[0], k.split("(**append_name**)",1)[1]))
+        if not(i in error_list):
+            cnt+=1
+            one_or_zero_flag=-1
+            adata=pickle_[i]
+            # ---
+            patient_ids.append(i)
+            rec_lab=np.unique(pickle_[i].obsm[dependent_variable_name])[0]
+            recurrence_labels.append(rec_lab)
+            # ---
+            clusters=list(np.unique(adata.obs['celltype']))
+            clusters_sorted=sorted(clusters)
+            no_of_clusts=len(clusters_sorted)
+            # ---
+            cluster_names_matrix=[]
+            for j in clusters_sorted:
+                list_=[]
+                for k in clusters_sorted:
+                    index=str(j)+'(**append_name**)'+str(k)
+                    list_.append(index)
+                cluster_names_matrix.append(list_)
+            upper_cluster_matrix = np.triu(cluster_names_matrix, 1)
+            # ---
+            cluster_pairs_list=[]
+            for j in upper_cluster_matrix:
+                for k in j:
+                    # print(j, k)
+                    if k!='' and k!=None:
+                        # cluster_pairs_list.append(k)
+                        cluster_pairs_list.append((k.split("(**append_name**)",1)[0], k.split("(**append_name**)",1)[1]))
+            
+            # ---------------------*************************---------------------
+            
+            squidpy.gr.spatial_neighbors(adata)
+            nhood_enrichment=squidpy.gr.co_occurrence(adata, cluster_key='celltype', interval=interval, copy=True, backend="multiprocessing", show_progress_bar=False)
+            # ---
+            clust_matrix={}
+            for clust1_ in range(no_of_clusts):
+                for clust2_ in range(no_of_clusts):
+                    clust1=clusters_sorted[clust1_]
+                    clust2=clusters_sorted[clust2_]
+                    if clust1!=clust2:
+                        sorted_strs=sorted([clust1, clust2])
+                        if (sorted_strs[0], sorted_strs[1]) in clust_matrix.keys():
+                            clust_matrix[(sorted_strs[0], sorted_strs[1])]=(clust_matrix[(sorted_strs[0], sorted_strs[1])]+nhood_enrichment[0][clust1_,clust2_,:])/2
+                        else:
+                            clust_matrix[(sorted_strs[0], sorted_strs[1])]=nhood_enrichment[0][clust1_,clust2_,:]
+            # ---
+            no_of_bins=len(nhood_enrichment[1])
+            x_axis=[]
+            cnt_nbins=-1
+            for n_bins in range(no_of_bins-1):
+                cnt_nbins+=1
+                x_axis.append((nhood_enrichment[1][n_bins]+nhood_enrichment[1][n_bins+1])/2)
+            # ---
+            
+            # ================================== Function similarities: ==================================
+            
+            auc_={}
+            max_={}
+            mean_={}
+            std_dev={} # standard_deviation = sqrt(variance)
+            for key in clust_matrix:
+                auc_[key]=auc(x_axis, list(clust_matrix[key]))
+                max_[key]=max(list(clust_matrix[key]))
+                mean_[key]=np.mean(list(clust_matrix[key]))
+                std_dev[key]=np.std(list(clust_matrix[key]))
         
-        # ---------------------*************************---------------------
         
-        squidpy.gr.spatial_neighbors(adata)
-        nhood_enrichment=squidpy.gr.co_occurrence(adata, cluster_key='celltype', interval=interval, copy=True, backend="multiprocessing", show_progress_bar=False)
-        # ---
-        clust_matrix={}
-        for clust1_ in range(no_of_clusts):
-            for clust2_ in range(no_of_clusts):
-                clust1=clusters_sorted[clust1_]
-                clust2=clusters_sorted[clust2_]
-                if clust1!=clust2:
-                    sorted_strs=sorted([clust1, clust2])
-                    if (sorted_strs[0], sorted_strs[1]) in clust_matrix.keys():
-                        clust_matrix[(sorted_strs[0], sorted_strs[1])]=(clust_matrix[(sorted_strs[0], sorted_strs[1])]+nhood_enrichment[0][clust1_,clust2_,:])/2
+            # ---------------------*************************---------------------
+            # ---------------------*************************---------------------
+            # ---------------------*************************---------------------
+
+
+            # ---
+            if rec_lab=='POSITIVE' or rec_lab=='positive' or rec_lab=='1' or rec_lab==1:
+                ct1=list(adata.obs['celltype'])
+                ct1_unique=list(np.unique(ct1))
+                for key in auc_:
+                    if key in AUC_1.keys():
+                        AUC_1[key].append(auc_[key])
                     else:
-                        clust_matrix[(sorted_strs[0], sorted_strs[1])]=nhood_enrichment[0][clust1_,clust2_,:]
-        # ---
-        no_of_bins=len(nhood_enrichment[1])
-        x_axis=[]
-        cnt_nbins=-1
-        for n_bins in range(no_of_bins-1):
-            cnt_nbins+=1
-            x_axis.append((nhood_enrichment[1][n_bins]+nhood_enrichment[1][n_bins+1])/2)
-        # ---
-        
-        # ================================== Function similarities: ==================================
-        
-        auc_={}
-        max_={}
-        mean_={}
-        std_dev={} # standard_deviation = sqrt(variance)
-        for key in clust_matrix:
-            auc_[key]=auc(x_axis, list(clust_matrix[key]))
-            max_[key]=max(list(clust_matrix[key]))
-            mean_[key]=np.mean(list(clust_matrix[key]))
-            std_dev[key]=np.std(list(clust_matrix[key]))
-        
-        
-        # ---------------------*************************---------------------
-        # ---------------------*************************---------------------
-        # ---------------------*************************---------------------
-
-
-        # ---
-        if rec_lab=='POSITIVE' or rec_lab=='positive' or rec_lab=='1' or rec_lab==1:
-            ct1=list(adata.obs['celltype'])
-            ct1_unique=list(np.unique(ct1))
-            for key in auc_:
-                if key in AUC_1.keys():
-                    AUC_1[key].append(auc_[key])
-                else:
-                    AUC_1[key]=[auc_[key]]
+                        AUC_1[key]=[auc_[key]]
+                # ---
+                for key in max_:
+                    if key in Max_1.keys():
+                        Max_1[key].append(max_[key])
+                    else:
+                        Max_1[key]=[max_[key]]
+                # ---
+                for key in mean_:
+                    if key in Mean_1.keys():
+                        Mean_1[key].append(mean_[key])
+                    else:
+                        Mean_1[key]=[mean_[key]]
+                # ---
+                for key in std_dev:
+                    if key in StdDev_1.keys():
+                        StdDev_1[key].append(std_dev[key])
+                    else:
+                        StdDev_1[key]=[std_dev[key]]
+                one_or_zero_flag=1
             # ---
-            for key in max_:
-                if key in Max_1.keys():
-                    Max_1[key].append(max_[key])
-                else:
-                    Max_1[key]=[max_[key]]
+            elif rec_lab=='NEGATIVE' or rec_lab=='negative' or rec_lab=='0' or rec_lab==0:
+                ct0=list(adata.obs['celltype'])
+                ct0_unique=list(np.unique(ct0))
+                for key in auc_:
+                    if key in AUC_0.keys():
+                        AUC_0[key].append(auc_[key])
+                    else:
+                        AUC_0[key]=[auc_[key]]
+                # ---
+                for key in max_:
+                    if key in Max_0.keys():
+                        Max_0[key].append(max_[key])
+                    else:
+                        Max_0[key]=[max_[key]]
+                # ---
+                for key in mean_:
+                    if key in Mean_0.keys():
+                        Mean_0[key].append(mean_[key])
+                    else:
+                        Mean_0[key]=[mean_[key]]
+                # ---
+                for key in std_dev:
+                    if key in StdDev_0.keys():
+                        StdDev_0[key].append(std_dev[key])
+                    else:
+                        StdDev_0[key]=[std_dev[key]]
+                one_or_zero_flag=0
             # ---
-            for key in mean_:
-                if key in Mean_1.keys():
-                    Mean_1[key].append(mean_[key])
-                else:
-                    Mean_1[key]=[mean_[key]]
+            
+            # ---------------------*************************---------------------
+            # ---------------------*************************---------------------
+            # ---------------------*************************---------------------
+            
             # ---
-            for key in std_dev:
-                if key in StdDev_1.keys():
-                    StdDev_1[key].append(std_dev[key])
-                else:
-                    StdDev_1[key]=[std_dev[key]]
-            one_or_zero_flag=1
-        # ---
-        elif rec_lab=='NEGATIVE' or rec_lab=='negative' or rec_lab=='0' or rec_lab==0:
-            ct0=list(adata.obs['celltype'])
-            ct0_unique=list(np.unique(ct0))
-            for key in auc_:
-                if key in AUC_0.keys():
-                    AUC_0[key].append(auc_[key])
-                else:
-                    AUC_0[key]=[auc_[key]]
+            if one_or_zero_flag==0:
+                for p in ct0_unique:
+                    if p in cell_types_0:
+                        cell_types_0_count[p]+=ct0.count(p)
+                    else:
+                        cell_types_0_count[p]=ct0.count(p)
+                for k in ct0_unique:
+                    cell_types_0.append(k)
+                cell_types_0=list(np.unique(cell_types_0))
+            elif one_or_zero_flag==1:
+                for p in ct1_unique:
+                    if p in cell_types_1:
+                        cell_types_1_count[p]+=ct1.count(p)
+                    else:
+                        cell_types_1_count[p]=ct1.count(p)
+                for k in ct1_unique:
+                    cell_types_1.append(k)
+                cell_types_1=list(np.unique(cell_types_1))
             # ---
-            for key in max_:
-                if key in Max_0.keys():
-                    Max_0[key].append(max_[key])
-                else:
-                    Max_0[key]=[max_[key]]
-            # ---
-            for key in mean_:
-                if key in Mean_0.keys():
-                    Mean_0[key].append(mean_[key])
-                else:
-                    Mean_0[key]=[mean_[key]]
-            # ---
-            for key in std_dev:
-                if key in StdDev_0.keys():
-                    StdDev_0[key].append(std_dev[key])
-                else:
-                    StdDev_0[key]=[std_dev[key]]
-            one_or_zero_flag=0
-        # ---
-        
-        # ---------------------*************************---------------------
-        # ---------------------*************************---------------------
-        # ---------------------*************************---------------------
-        
-        # ---
-        if one_or_zero_flag==0:
-            for p in ct0_unique:
-                if p in cell_types_0:
-                    cell_types_0_count[p]+=ct0.count(p)
-                else:
-                    cell_types_0_count[p]=ct0.count(p)
-            for k in ct0_unique:
-                cell_types_0.append(k)
-            cell_types_0=list(np.unique(cell_types_0))
-        elif one_or_zero_flag==1:
-            for p in ct1_unique:
-                if p in cell_types_1:
-                    cell_types_1_count[p]+=ct1.count(p)
-                else:
-                    cell_types_1_count[p]=ct1.count(p)
-            for k in ct1_unique:
-                cell_types_1.append(k)
-            cell_types_1=list(np.unique(cell_types_1))
-        # ---
         
 
     # ========================================================================================
@@ -393,10 +431,15 @@ def dasquidpy_cluster_cooccurrence_across_spatial_dimensions(adata_pickle_path, 
         # ---
     # ---
 
-    AUC_dict=dict(zip(celltypes_0_and_1, AUC_list))
-    Max_dict=dict(zip(celltypes_0_and_1, Max_list))
-    Mean_dict=dict(zip(celltypes_0_and_1, Mean_list))
-    StdDev_dict=dict(zip(celltypes_0_and_1, StdDev_list))
+    # AUC_dict=dict(zip(celltypes_0_and_1, AUC_list))
+    # Max_dict=dict(zip(celltypes_0_and_1, Max_list))
+    # Mean_dict=dict(zip(celltypes_0_and_1, Mean_list))
+    # StdDev_dict=dict(zip(celltypes_0_and_1, StdDev_list))
+
+    AUC_dict=dict(zip(AUC_celltypePairs_0and1, AUC_list))
+    Max_dict=dict(zip(AUC_celltypePairs_0and1, Max_list))
+    Mean_dict=dict(zip(AUC_celltypePairs_0and1, Mean_list))
+    StdDev_dict=dict(zip(AUC_celltypePairs_0and1, StdDev_list))
 
     # -------------------------
     significant_AUC_dict = dict((k, v) for k, v in AUC_dict.items() if v < 0.05)
@@ -416,75 +459,446 @@ def dasquidpy_cluster_cooccurrence_across_spatial_dimensions(adata_pickle_path, 
 
 
     # ---
-
     if len(significant_AUC_dict_sorted)==0:
         print('No significant celltype pairs found in terms of cluster co-occurrence across spatial dimensions (AUC)!')
     else:
+        from IPython.display import set_matplotlib_formats
+        # set_matplotlib_formats('retina', quality=100)
+        import seaborn as sns
+        # sns.set_theme()
+        sns.set_theme(style="whitegrid")
+        # plt.rcdefaults()
         # ---
-        fig, axes = plt.subplots(figsize=(10, 4))
-        fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltype pairs with significant cluster co-occurrence AUC differences (p-value<0.05)')
+        # Set default figure size.
+        plt.rcParams['figure.figsize'] = (12, 5)
+        fig, axes = plt.subplots(figsize=(12, 5))
+        # fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltypes with significant cluster co-occurrence AUC differences (p-value<0.05)')
         feature = list(significant_AUC_dict_sorted.keys())
+        # -----
+        _feature_=[]
+        for i in feature:
+            _feature_.append((cellTypeName_shortForm_dict[i[0]], cellTypeName_shortForm_dict[i[1]]))
+        # -----
         score = list(significant_AUC_dict_sorted.values())
         x_pos = np.arange(len(feature))
         # ---
-        plt.bar(x_pos, score,align='center')
-        plt.xticks(x_pos, feature, rotation=90) 
-        plt.ylabel('p-value (MWU test)')
-        plt.savefig(f'DA_ClustCooccurrAUC_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf')
-        plt.show()
+        # Axis formatting.
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+        axes.spines['left'].set_visible(False)
+        axes.spines['bottom'].set_color('#DDDDDD')
+        axes.tick_params(bottom=False, left=False)
+        axes.set_axisbelow(True)
+        axes.yaxis.grid(True, color='#EEEEEE')
+        axes.xaxis.grid(False)
+        # ---
+        axes.tick_params(labelsize = 14)
+        # Add a footnote below and to the right side of the chart
+        # axes.annotate('Footnote added below the chart with a smaller font',
+        #             xy = (1.0, -0.2),
+        #             xycoords='axes fraction',
+        #             ha='right',
+        #             va="center",
+        #             fontsize=10)
+        # plt.show()
+        # ---
+        # textstr = '\n'.join((
+        # r'$\mu=%.2f$' % (mu, ),
+        # r'$\mathrm{median}=%.2f$' % (median, ),
+        # r'$\sigma=%.2f$' % (sigma, )))
+        # ---
+        
+        textstr = '\n'.join((
+        r'$\mu=%.2f$',
+        r'$\mathrm{median}=%.2f$',
+        r'$\sigma=%.2f$'))
+        
+        _string_ = str(cellTypeName_shortForm_dict)
+        
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        
+        # # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        # #     verticalalignment='top', bbox=props)
+        
+        # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        #     verticalalignment='top', bbox=props)
+        
+        my_text = ''
+        my_text += cellTypeName_shortForm_str
+        props = dict(boxstyle='round', facecolor='grey', alpha=0.15)
+        axes.text(1.03, 0.98, my_text, transform=axes.transAxes, fontsize=12, verticalalignment='top', bbox=props)
+        
+        # ---
+        bars=plt.bar(x_pos, score,align='center')
+        # ---
+        # Grab the color of the bars so we can make the
+        # text the same color.
+        bar_color = bars[0].get_facecolor()
+
+        # Add text annotations to the top of the bars.
+        # Note, you'll have to adjust this slightly (the 0.3)
+        # with different data.
+        for bar in bars:
+            axes.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0,
+                round(score[int(bar.get_x() + bar.get_width() / 2)],3),
+                # round(bar.get_height(), 1),
+                horizontalalignment='center',
+                color=bar_color,
+                weight='bold'
+            )
+        # --- Ticks: ---
+        # plt.xticks(x_pos, feature, rotation=90)
+        plt.xticks(x_pos, _feature_, rotation=90)
+        # --------------
+        # --- Labels: ---
+        # plt.ylabel('p-value (MWU test)')
+        # ---------------
+        # ---
+        # Add labels and a title. Note the use of `labelpad` and `pad` to add some
+        # extra space between the text and the tick labels.
+        axes.set_xlabel('Celltypes', labelpad=15, color='#333333')
+        axes.set_ylabel('p-value (MWU)', labelpad=15, color='#333333')
+        axes.set_title('Cluster co-occurrence (AUC)\n$(celltypes\;with\;p < 0.05)$', pad=15, color='#333333',
+                weight='bold')
+        # ---
+        fig.tight_layout()
+        # fig.constrained_layout()
+        plt.savefig(f'DA_ClustCooccurrAUC_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf', bbox_inches='tight')
+        plt.show()    
 
     # ---
 
     if len(significant_Max_dict_sorted)==0:
-        print('No significant celltype pairs found in terms of cluster co-occurrence across spatial dimensions (max-value)!')
+        print('No significant celltypes found in terms of cluster co-occurrence across spatial dimensions (max-value)!')
     else:
+        from IPython.display import set_matplotlib_formats
+        # set_matplotlib_formats('retina', quality=100)
+        import seaborn as sns
+        # sns.set_theme()
+        sns.set_theme(style="whitegrid")
+        # plt.rcdefaults()
         # ---
-        fig, axes = plt.subplots(figsize=(10, 4))
-        fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltype pairs with significant cluster co-occurrence max-value differences (p-value<0.05)')
+        # Set default figure size.
+        plt.rcParams['figure.figsize'] = (12, 5)
+        fig, axes = plt.subplots(figsize=(12, 5))
+        # fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltypes with significant cluster co-occurrence max-value differences (p-value<0.05)')
         feature = list(significant_Max_dict_sorted.keys())
+        # -----
+        _feature_=[]
+        for i in feature:
+            _feature_.append((cellTypeName_shortForm_dict[i[0]], cellTypeName_shortForm_dict[i[1]]))
+        # -----
         score = list(significant_Max_dict_sorted.values())
         x_pos = np.arange(len(feature))
         # ---
-        plt.bar(x_pos, score,align='center')
-        plt.xticks(x_pos, feature, rotation=90) 
-        plt.ylabel('p-value (MWU test)')
-        plt.savefig(f'DA_ClustCooccurrMax_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf')
+        # Axis formatting.
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+        axes.spines['left'].set_visible(False)
+        axes.spines['bottom'].set_color('#DDDDDD')
+        axes.tick_params(bottom=False, left=False)
+        axes.set_axisbelow(True)
+        axes.yaxis.grid(True, color='#EEEEEE')
+        axes.xaxis.grid(False)
+        # ---
+        axes.tick_params(labelsize = 14)
+        # Add a footnote below and to the right side of the chart
+        # axes.annotate('Footnote added below the chart with a smaller font',
+        #             xy = (1.0, -0.2),
+        #             xycoords='axes fraction',
+        #             ha='right',
+        #             va="center",
+        #             fontsize=10)
+        # plt.show()
+        # ---
+        # textstr = '\n'.join((
+        # r'$\mu=%.2f$' % (mu, ),
+        # r'$\mathrm{median}=%.2f$' % (median, ),
+        # r'$\sigma=%.2f$' % (sigma, )))
+        # ---
+        
+        textstr = '\n'.join((
+        r'$\mu=%.2f$',
+        r'$\mathrm{median}=%.2f$',
+        r'$\sigma=%.2f$'))
+        
+        _string_ = str(cellTypeName_shortForm_dict)
+        
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        
+        # # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        # #     verticalalignment='top', bbox=props)
+        
+        # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        #     verticalalignment='top', bbox=props)
+        
+        my_text = ''
+        my_text += cellTypeName_shortForm_str
+        props = dict(boxstyle='round', facecolor='grey', alpha=0.15)
+        axes.text(1.03, 0.98, my_text, transform=axes.transAxes, fontsize=12, verticalalignment='top', bbox=props)
+        
+        # ---
+        bars=plt.bar(x_pos, score,align='center')
+        # ---
+        # Grab the color of the bars so we can make the
+        # text the same color.
+        bar_color = bars[0].get_facecolor()
+
+        # Add text annotations to the top of the bars.
+        # Note, you'll have to adjust this slightly (the 0.3)
+        # with different data.
+        for bar in bars:
+            axes.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0,
+                round(score[int(bar.get_x() + bar.get_width() / 2)],3),
+                # round(bar.get_height(), 1),
+                horizontalalignment='center',
+                color=bar_color,
+                weight='bold'
+            )
+        # --- Ticks: ---
+        # plt.xticks(x_pos, feature, rotation=90)
+        plt.xticks(x_pos, _feature_, rotation=90)
+        # --------------
+        # --- Labels: ---
+        # plt.ylabel('p-value (MWU test)')
+        # ---------------
+        # ---
+        # Add labels and a title. Note the use of `labelpad` and `pad` to add some
+        # extra space between the text and the tick labels.
+        axes.set_xlabel('Celltypes', labelpad=15, color='#333333')
+        axes.set_ylabel('p-value (MWU)', labelpad=15, color='#333333')
+        axes.set_title('Cluster co-occurrence (${max}_{scores}$)\n$(celltypes\;with\;p < 0.05)$', pad=15, color='#333333',
+                weight='bold')
+        # ---
+        fig.tight_layout()
+        # fig.constrained_layout()
+        plt.savefig(f'DA_ClustCooccurrMax_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf', bbox_inches='tight')
         plt.show()
 
     # ---
 
     if len(significant_Mean_dict_sorted)==0:
-        print('No significant celltype pairs found in terms of cluster co-occurrence across spatial dimensions (mean-value)!')
+        print('No significant celltypes found in terms of cluster co-occurrence across spatial dimensions (mean-value)!')
     else:
+        from IPython.display import set_matplotlib_formats
+        # set_matplotlib_formats('retina', quality=100)
+        import seaborn as sns
+        # sns.set_theme()
+        sns.set_theme(style="whitegrid")
+        # plt.rcdefaults()
         # ---
-        fig, axes = plt.subplots(figsize=(10, 4))
-        fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltype pairs with significant cluster co-occurrence mean-value differences (p-value<0.05)')
+        # Set default figure size.
+        plt.rcParams['figure.figsize'] = (12, 5)
+        fig, axes = plt.subplots(figsize=(12, 5))
+        # fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltype pairs with significant cluster co-occurrence mean-value differences (p-value<0.05)')
         feature = list(significant_Mean_dict_sorted.keys())
+        # -----
+        _feature_=[]
+        for i in feature:
+            _feature_.append((cellTypeName_shortForm_dict[i[0]], cellTypeName_shortForm_dict[i[1]]))
+        # -----
         score = list(significant_Mean_dict_sorted.values())
         x_pos = np.arange(len(feature))
         # ---
-        plt.bar(x_pos, score,align='center')
-        plt.xticks(x_pos, feature, rotation=90) 
-        plt.ylabel('p-value (MWU test)')
-        plt.savefig(f'DA_ClustCooccurrMean_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf')
+        # Axis formatting.
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+        axes.spines['left'].set_visible(False)
+        axes.spines['bottom'].set_color('#DDDDDD')
+        axes.tick_params(bottom=False, left=False)
+        axes.set_axisbelow(True)
+        axes.yaxis.grid(True, color='#EEEEEE')
+        axes.xaxis.grid(False)
+        # ---
+        axes.tick_params(labelsize = 14)
+        # Add a footnote below and to the right side of the chart
+        # axes.annotate('Footnote added below the chart with a smaller font',
+        #             xy = (1.0, -0.2),
+        #             xycoords='axes fraction',
+        #             ha='right',
+        #             va="center",
+        #             fontsize=10)
+        # plt.show()
+        # ---
+        # textstr = '\n'.join((
+        # r'$\mu=%.2f$' % (mu, ),
+        # r'$\mathrm{median}=%.2f$' % (median, ),
+        # r'$\sigma=%.2f$' % (sigma, )))
+        # ---
+        
+        textstr = '\n'.join((
+        r'$\mu=%.2f$',
+        r'$\mathrm{median}=%.2f$',
+        r'$\sigma=%.2f$'))
+        
+        _string_ = str(cellTypeName_shortForm_dict)
+        
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        
+        # # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        # #     verticalalignment='top', bbox=props)
+        
+        # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        #     verticalalignment='top', bbox=props)
+        
+        my_text = ''
+        my_text += cellTypeName_shortForm_str
+        props = dict(boxstyle='round', facecolor='grey', alpha=0.15)
+        axes.text(1.03, 0.98, my_text, transform=axes.transAxes, fontsize=12, verticalalignment='top', bbox=props)
+        
+        # ---
+        bars=plt.bar(x_pos, score,align='center')
+        # ---
+        # Grab the color of the bars so we can make the
+        # text the same color.
+        bar_color = bars[0].get_facecolor()
+
+        # Add text annotations to the top of the bars.
+        # Note, you'll have to adjust this slightly (the 0.3)
+        # with different data.
+        for bar in bars:
+            axes.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0,
+                round(score[int(bar.get_x() + bar.get_width() / 2)],3),
+                # round(bar.get_height(), 1),
+                horizontalalignment='center',
+                color=bar_color,
+                weight='bold'
+            )
+        # --- Ticks: ---
+        # plt.xticks(x_pos, feature, rotation=90)
+        plt.xticks(x_pos, _feature_, rotation=90)
+        # --------------
+        # --- Labels: ---
+        # plt.ylabel('p-value (MWU test)')
+        # ---------------
+        # ---
+        # Add labels and a title. Note the use of `labelpad` and `pad` to add some
+        # extra space between the text and the tick labels.
+        axes.set_xlabel('Celltypes', labelpad=15, color='#333333')
+        axes.set_ylabel('p-value (MWU)', labelpad=15, color='#333333')
+        axes.set_title('Cluster co-occurrence ($\mu_{scores}$)\n$(celltypes\;with\;p < 0.05)$', pad=15, color='#333333',
+                weight='bold')
+        # ---
+        fig.tight_layout()
+        # fig.constrained_layout()
+        plt.savefig(f'DA_ClustCooccurrMean_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf', bbox_inches='tight')
         plt.show()
 
     # ---
 
     if len(significant_StdDev_dict_sorted)==0:
-        print('No significant celltype pairs found in terms of cluster co-occurrence across spatial dimensions (standard deviation)!')
+        print('No significant celltypes found in terms of cluster co-occurrence across spatial dimensions (standard deviation)!')
     else:
+        from IPython.display import set_matplotlib_formats
+        # set_matplotlib_formats('retina', quality=100)
+        import seaborn as sns
+        # sns.set_theme()
+        sns.set_theme(style="whitegrid")
+        # plt.rcdefaults()
         # ---
-        fig, axes = plt.subplots(figsize=(10, 4))
-        fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltype pairs with significant cluster co-occurrence standard deviation differences (p-value<0.05)')
+        # Set default figure size.
+        plt.rcParams['figure.figsize'] = (12, 5)
+        fig, axes = plt.subplots(figsize=(12, 5))
+        # fig.suptitle(f'Differential Analysis (Cluster Co-occurrence) – celltype pairs with significant cluster co-occurrence standard deviation differences (p-value<0.05)')
         feature = list(significant_StdDev_dict_sorted.keys())
+        # -----
+        _feature_=[]
+        for i in feature:
+            _feature_.append((cellTypeName_shortForm_dict[i[0]], cellTypeName_shortForm_dict[i[1]]))
+        # -----
         score = list(significant_StdDev_dict_sorted.values())
         x_pos = np.arange(len(feature))
         # ---
-        plt.bar(x_pos, score,align='center')
-        plt.xticks(x_pos, feature, rotation=90) 
-        plt.ylabel('p-value (MWU test)')
-        plt.savefig(f'DA_ClustCooccurrStdDev_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf')
-        plt.show()
+        # Axis formatting.
+        axes.spines['top'].set_visible(False)
+        axes.spines['right'].set_visible(False)
+        axes.spines['left'].set_visible(False)
+        axes.spines['bottom'].set_color('#DDDDDD')
+        axes.tick_params(bottom=False, left=False)
+        axes.set_axisbelow(True)
+        axes.yaxis.grid(True, color='#EEEEEE')
+        axes.xaxis.grid(False)
+        # ---
+        axes.tick_params(labelsize = 14)
+        # Add a footnote below and to the right side of the chart
+        # axes.annotate('Footnote added below the chart with a smaller font',
+        #             xy = (1.0, -0.2),
+        #             xycoords='axes fraction',
+        #             ha='right',
+        #             va="center",
+        #             fontsize=10)
+        # plt.show()
+        # ---
+        # textstr = '\n'.join((
+        # r'$\mu=%.2f$' % (mu, ),
+        # r'$\mathrm{median}=%.2f$' % (median, ),
+        # r'$\sigma=%.2f$' % (sigma, )))
+        # ---
+        
+        textstr = '\n'.join((
+        r'$\mu=%.2f$',
+        r'$\mathrm{median}=%.2f$',
+        r'$\sigma=%.2f$'))
+        
+        _string_ = str(cellTypeName_shortForm_dict)
+        
+        props = dict(boxstyle='round', facecolor='wheat', alpha=0.5)
+        
+        # # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        # #     verticalalignment='top', bbox=props)
+        
+        # axes.text(0.05, 0.95, textstr, transform=axes.transAxes, fontsize=14,
+        #     verticalalignment='top', bbox=props)
+        
+        my_text = ''
+        my_text += cellTypeName_shortForm_str
+        props = dict(boxstyle='round', facecolor='grey', alpha=0.15)
+        axes.text(1.03, 0.98, my_text, transform=axes.transAxes, fontsize=12, verticalalignment='top', bbox=props)
+        
+        # ---
+        bars=plt.bar(x_pos, score,align='center')
+        # ---
+        # Grab the color of the bars so we can make the
+        # text the same color.
+        bar_color = bars[0].get_facecolor()
 
+        # Add text annotations to the top of the bars.
+        # Note, you'll have to adjust this slightly (the 0.3)
+        # with different data.
+        for bar in bars:
+            axes.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0,
+                round(score[int(bar.get_x() + bar.get_width() / 2)],3),
+                # round(bar.get_height(), 1),
+                horizontalalignment='center',
+                color=bar_color,
+                weight='bold'
+            )
+        # --- Ticks: ---
+        # plt.xticks(x_pos, feature, rotation=90)
+        plt.xticks(x_pos, _feature_, rotation=90)
+        # --------------
+        # --- Labels: ---
+        # plt.ylabel('p-value (MWU test)')
+        # ---------------
+        # ---
+        # Add labels and a title. Note the use of `labelpad` and `pad` to add some
+        # extra space between the text and the tick labels.
+        axes.set_xlabel('Celltypes', labelpad=15, color='#333333')
+        axes.set_ylabel('p-value (MWU)', labelpad=15, color='#333333')
+        axes.set_title('Cluster co-occurrence $-$ spread ($\sigma_{scores}$)\n$(celltypes\;with\;p < 0.05)$', pad=15, color='#333333',
+                weight='bold')
+        # ---
+        fig.tight_layout()
+        # fig.constrained_layout()
+        plt.savefig(f'DA_ClustCooccurrStdDev_pvalues_significantCelltypePairs_allPatients.pdf', format='pdf', bbox_inches='tight')
+        plt.show()
+        
     # ---
